@@ -201,8 +201,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     </div>
     <div class="tabs" role="tablist" id="tabs">
       <button role="tab" data-tab="num" aria-selected="true">Números</button>
-      <button role="tab" data-tab="met" aria-selected="false">Métricas</button>
+      <button role="tab" data-tab="cal" aria-selected="false">Calendario</button>
       <button role="tab" data-tab="cli" aria-selected="false">Clientes</button>
+      <button role="tab" data-tab="met" aria-selected="false">Métricas</button>
     </div>
   </div>
   <div class="demo" id="demo" hidden>Estás viendo <b>datos de ejemplo</b>, nada de esto se guarda. <button type="button" data-act="exit-demo">Salir</button></div>
@@ -468,7 +469,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     $("mlab").textContent = mLabel(UI.month);
     $("demo").hidden = !DEMO; setStatus(STATUS);
     [].forEach.call($("tabs").children, function (b) { b.setAttribute("aria-selected", b.getAttribute("data-tab") === UI.tab); });
-    $("app").innerHTML = (UI.tab === "num" ? vNum() : UI.tab === "met" ? vMet() : vCli()) + vFoot();
+    $("app").innerHTML = (UI.tab === "num" ? vNum() : UI.tab === "met" ? vMet() : UI.tab === "cal" ? vCal() : vCli()) + vFoot();
   }
 
   function kpi(label, val, sub, cls) { return '<div class="card k ' + (cls || "") + '"><small>' + label + '</small><div class="v">' + val + '</div><div class="d">' + sub + "</div></div>"; }
@@ -575,10 +576,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var due = fu.filter(function (f) { return f.due <= addDays(t, 0); }).length;
     var tr = DB.turnos.filter(function (x) { return x.date >= t && x.estado !== "canc" && x.estado !== "hecho"; });
     var cnt = { seg: due, tur: tr.length, cli: DB.clients.length };
-    var h = '<div class="sub" id="sub">' + [["seg", "Seguimientos"], ["cal", "Calendario"], ["tur", "Turnos"], ["cli", "Clientes"], ["rea", "Para reactivar"]].map(function (x) { return '<button data-sub="' + x[0] + '" aria-selected="' + (UI.sub === x[0]) + '">' + x[1] + (cnt[x[0]] != null ? "<b>" + cnt[x[0]] + "</b>" : "") + "</button>"; }).join("") + "</div>";
+    var h = '<div class="sub" id="sub">' + [["seg", "Seguimientos"], ["tur", "Turnos"], ["cli", "Clientes"], ["rea", "Para reactivar"]].map(function (x) { return '<button data-sub="' + x[0] + '" aria-selected="' + (UI.sub === x[0]) + '">' + x[1] + (cnt[x[0]] != null ? "<b>" + cnt[x[0]] + "</b>" : "") + "</button>"; }).join("") + "</div>";
     if (UI.sub === "seg") h += vSeg(fu);
     else if (UI.sub === "tur") h += vTur();
-    else if (UI.sub === "cal") h += vCal();
     else if (UI.sub === "rea") h += vRea();
     else h += vClients();
     return h;
@@ -966,7 +966,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   $("mnext").addEventListener("click", function () { UI.month = addM(UI.month, 1); render(); });
 
   var h = location.hash.replace("#", "");
-  var tm = h.match(/(num|met|cli)/); if (tm) UI.tab = tm[1];
+  var tm = h.match(/(num|cal|met|cli)/); if (tm) UI.tab = tm[1];
   var sm = h.match(/-(seg|cal|tur|cli|rea)$/); if (sm) UI.sub = sm[1];
   $("lg-form").addEventListener("submit", doLogin);
   document.addEventListener("visibilitychange", function () { if (!document.hidden && TOKEN && !DEMO) { flush().then(pull).then(function () { return syncCal(false); }); } });
