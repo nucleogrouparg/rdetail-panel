@@ -148,15 +148,16 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
 .calsum{max-width:560px;margin-inline:auto;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.86rem;color:var(--g3);margin-bottom:12px}.calsum b{font-family:var(--display);font-weight:400;font-size:1.25rem;color:var(--off);margin-right:4px}.calsum .y b{color:#e8c547}
 .cal{max-width:560px;margin-inline:auto}.cal .dw{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:4px}.cal .dw i{font-style:normal;text-align:center;font-size:.72rem;font-weight:800;letter-spacing:.14em;color:var(--g3)}
 .cal .dg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-.cal .c{min-width:0;aspect-ratio:1/1;min-height:46px;max-height:74px;border:1px solid var(--g1);border-radius:10px;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6px 2px 6px;color:var(--off)}
+.cal .c{min-width:0;min-height:52px;border:1px solid var(--g1);border-radius:10px;background:var(--ink);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:3px;padding:5px 4px;color:var(--off);text-align:left}
 .cal .c:hover{border-color:var(--g2)}
-.cal .c .n{font-family:var(--display);font-size:1.25rem;letter-spacing:.03em;line-height:1}
-.cal .c .dots{display:flex;gap:3px;align-items:center;min-height:9px}
-.cal .c .dots b{width:8px;height:8px;border-radius:50%;background:var(--ok)}.cal .c .dots b.pend{background:#e8c547}
-.cal .c .dots em{font-style:normal;font-size:.62rem;font-weight:800;color:var(--g3)}
+.cal .c .n{font-family:var(--display);font-size:1.1rem;letter-spacing:.03em;line-height:1;text-align:center}
+.cal .c .evs{display:flex;flex-direction:column;gap:2px;width:100%;min-height:9px}
+.cal .c .evs b{display:block;font-style:normal;font-weight:600;font-size:.6rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2px solid var(--ok);padding-left:4px}
+.cal .c .evs b.pend{border-left-color:#e8c547}
+.cal .c .evs em{display:block;font-style:normal;font-size:.58rem;font-weight:800;color:var(--g3);padding-left:4px}
 .cal .c.off{opacity:.4}.cal .c.full{background:rgba(220,26,33,.16);border-color:rgba(220,26,33,.6)}
 .cal .c.today .n{color:var(--red-hi)}.cal .c.today{box-shadow:inset 0 0 0 1px var(--red-hi)}
-.cal .c.sel{background:var(--off);border-color:var(--off);color:var(--ink)}.cal .c.sel .n{color:var(--ink)}.cal .c.sel .dots em{color:var(--ink)}
+.cal .c.sel{background:var(--off);border-color:var(--off);color:var(--ink)}.cal .c.sel .n{color:var(--ink)}.cal .c.sel .evs em{color:var(--ink)}
 .cal .e{display:block}
 .it .nm span b{display:inline;font-size:inherit;line-height:inherit}
 .newt{margin:0 0 12px;padding:14px 14px 4px;border:1px dashed var(--red);border-radius:12px;background:rgba(220,26,33,.08)}
@@ -618,6 +619,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var m = UI.month, t = today(), first = new Date(m + "-01T12:00:00"), nd = new Date(+m.slice(0, 4), +m.slice(5, 7), 0).getDate();
     var lead = (first.getDay() + 6) % 7; // semana desde el lunes
     var by = {}; DB.turnos.forEach(function (x) { if (x.estado !== "canc" && x.date.slice(0, 7) === m) (by[x.date] = by[x.date] || []).push(x); });
+    var clById = {}; DB.clients.forEach(function (c) { clById[c.id] = c; });
     var all = DB.turnos.filter(function (x) { return x.date.slice(0, 7) === m && x.estado !== "canc"; });
     var pend = all.filter(function (x) { return x.estado === "pend"; }).length, done = all.filter(function (x) { return x.estado === "hecho"; }).length;
     if (!UI.day || UI.day.slice(0, 7) !== m) UI.day = (t.slice(0, 7) === m) ? t : m + "-01";
@@ -626,9 +628,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     h += '<div class="cal"><div class="dw">' + ["L", "M", "M", "J", "V", "S", "D"].map(function (d) { return "<i>" + d + "</i>"; }).join("") + "</div><div class=\"dg\">";
     for (var i = 0; i < lead; i++) h += '<span class="e"></span>';
     for (var d = 1; d <= nd; d++) {
-      var ds = m + "-" + pad(d), l = by[ds] || [], dow = new Date(ds + "T12:00:00").getDay(), n = l.length;
-      var dots = l.slice(0, 3).map(function (x) { return '<b class="' + x.estado + '"></b>'; }).join("") + (n > 3 ? '<em>+' + (n - 3) + "</em>" : "");
-      h += '<button type="button" class="c' + (ds === t ? " today" : "") + (ds === UI.day ? " sel" : "") + (dow === 0 ? " off" : "") + (n >= 3 ? " full" : "") + '" data-act="pick-day" data-id="' + ds + '" aria-label="' + dLong(ds) + ", " + n + ' turnos"><span class="n">' + d + '</span><span class="dots">' + dots + "</span></button>";
+      var ds = m + "-" + pad(d), l = (by[ds] || []).slice().sort(function (a, b) { return a.time < b.time ? -1 : 1; }), dow = new Date(ds + "T12:00:00").getDay(), n = l.length;
+      var evs = l.slice(0, 2).map(function (x) { var cl = clById[x.cid]; return '<b class="' + x.estado + '">' + esc(x.time + " " + (cl ? cl.name : x.service)) + "</b>"; }).join("") + (n > 2 ? "<em>+" + (n - 2) + " más</em>" : "");
+      h += '<button type="button" class="c' + (ds === t ? " today" : "") + (ds === UI.day ? " sel" : "") + (dow === 0 ? " off" : "") + (n >= 3 ? " full" : "") + '" data-act="pick-day" data-id="' + ds + '" aria-label="' + dLong(ds) + ", " + n + ' turnos"><span class="n">' + d + '</span><span class="evs">' + evs + "</span></button>";
     }
     h += '</div></div><div class="leg" style="margin-top:12px"><span><b style="background:var(--ok)"></b>Confirmado / realizado</span><span><b style="background:#e8c547"></b>Falta seña</span><span><b style="background:var(--red)"></b>3 o más turnos</span></div></div></div>';
     var dl = (by[UI.day] || []).slice().sort(function (a, b) { return a.time < b.time ? -1 : 1; });
