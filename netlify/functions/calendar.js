@@ -22,17 +22,24 @@ exports.handler = async (event) => {
     const events = [];
     lists.forEach((r) => {
       (r.items || []).forEach((e) => {
-        if (e.status === "cancelled" || !e.start || !e.start.dateTime) return;
+        if (e.status === "cancelled" || !e.start || (!e.start.dateTime && !e.start.date)) return;
         const d = e.description || "";
         let name = field(d, "Cliente"), service = field(d, "Servicio");
         const manual = !name || !service;
         if (manual) { name = "Turno manual"; service = (e.summary || "Sin título").trim(); } // cargado a mano en el calendario, sin los campos de la web
-        const t = new Date(e.start.dateTime);
-        const ar = new Date(t.getTime() - 3 * 3600000); // hora de Argentina
+        let date, time;
+        if (e.start.dateTime) {
+          const t = new Date(e.start.dateTime);
+          const ar = new Date(t.getTime() - 3 * 3600000); // hora de Argentina
+          date = ar.getUTCFullYear() + "-" + pad(ar.getUTCMonth() + 1) + "-" + pad(ar.getUTCDate());
+          time = pad(ar.getUTCHours()) + ":" + pad(ar.getUTCMinutes());
+        } else {
+          date = e.start.date; // evento de todo el día, sin horario puntual
+          time = "00:00";
+        }
         events.push({
           eid: e.id,
-          date: ar.getUTCFullYear() + "-" + pad(ar.getUTCMonth() + 1) + "-" + pad(ar.getUTCDate()),
-          time: pad(ar.getUTCHours()) + ":" + pad(ar.getUTCMinutes()),
+          date, time,
           name, service, veh: /camioneta/i.test(field(d, "Vehículo")) ? "camioneta" : "auto",
           phone: field(d, "Teléfono"), email: field(d, "Mail"), manual,
           estado: /^SEÑA PENDIENTE/i.test(e.summary || "") ? "pend" : "conf"
