@@ -25,7 +25,8 @@ exports.handler = async (event) => {
         if (e.status === "cancelled" || !e.start || !e.start.dateTime) return;
         const d = e.description || "";
         let name = field(d, "Cliente"), service = field(d, "Servicio");
-        if (!name || !service) { name = "Turno manual"; service = (e.summary || "Sin título").trim(); } // cargado a mano en el calendario, sin los campos de la web
+        const manual = !name || !service;
+        if (manual) { name = "Turno manual"; service = (e.summary || "Sin título").trim(); } // cargado a mano en el calendario, sin los campos de la web
         const t = new Date(e.start.dateTime);
         const ar = new Date(t.getTime() - 3 * 3600000); // hora de Argentina
         events.push({
@@ -33,7 +34,7 @@ exports.handler = async (event) => {
           date: ar.getUTCFullYear() + "-" + pad(ar.getUTCMonth() + 1) + "-" + pad(ar.getUTCDate()),
           time: pad(ar.getUTCHours()) + ":" + pad(ar.getUTCMinutes()),
           name, service, veh: /camioneta/i.test(field(d, "Vehículo")) ? "camioneta" : "auto",
-          phone: field(d, "Teléfono"), email: field(d, "Mail"),
+          phone: field(d, "Teléfono"), email: field(d, "Mail"), manual,
           estado: /^SEÑA PENDIENTE/i.test(e.summary || "") ? "pend" : "conf"
         });
       });

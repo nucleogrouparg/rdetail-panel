@@ -339,7 +339,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
         if (tu) { if (tu.estado === "pend" && e.estado === "conf") { tu.estado = "conf"; changed++; } if (tu.date !== e.date || tu.time !== e.time) { tu.date = e.date; tu.time = e.time; changed++; } return; }
         var dg = String(e.phone).replace(/\D/g, ""), c = DB.clients.filter(function (x) { return (dg && String(x.phone).replace(/\D/g, "") === dg) || x.name.toLowerCase() === e.name.toLowerCase(); })[0];
         if (!c) { c = { id: uid(), name: e.name, phone: e.phone, vehicle: "", plate: "", notes: e.email ? "Mail: " + e.email : "" }; DB.clients.push(c); }
-        DB.turnos.push({ id: uid(), eid: e.eid, date: e.date, time: e.time, cid: c.id, veh: e.veh, service: e.service, estado: e.estado, nota: "Reservó desde la web" }); added++;
+        DB.turnos.push({ id: uid(), eid: e.eid, date: e.date, time: e.time, cid: c.id, veh: e.veh, service: e.service, estado: e.estado, nota: e.manual ? "Cargado a mano en el calendario" : "Reservó desde la web" }); added++;
       });
       DB.turnos.forEach(function (x) { if (x.eid && !seen[x.eid] && x.date >= r.from && x.date >= t && (x.estado === "pend" || x.estado === "conf")) { x.estado = "canc"; x.nota = (x.nota ? x.nota + " · " : "") + "Se liberó o se borró del calendario"; changed++; } });
       if (added || changed) { save(); render(); }
