@@ -11,7 +11,7 @@ function settings() {
     const text = raw.trim().startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
     const sa = JSON.parse(text);
     if (!sa.client_email || !sa.private_key) return null;
-    return { sa, sheetId, password, calendarId: process.env.GOOGLE_CALENDAR_ID || "", secret: process.env.PANEL_SECRET || sa.private_key.slice(-200) };
+    return { sa, sheetId, password, calendarId: process.env.GOOGLE_CALENDAR_ID || "", calendarId2: process.env.GOOGLE_CALENDAR_ID_2 || "", secret: process.env.PANEL_SECRET || sa.private_key.slice(-200) };
   } catch (e) { return null; }
 }
 
