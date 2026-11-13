@@ -19,8 +19,9 @@ exports.handler = async (event) => {
     const events = [];
     (r.items || []).forEach((e) => {
       if (e.status === "cancelled" || !e.start || !e.start.dateTime) return;
-      const d = e.description || "", name = field(d, "Cliente"), service = field(d, "Servicio");
-      if (!name || !service) return; // eventos que no son reservas de la web
+      const d = e.description || "";
+      let name = field(d, "Cliente"), service = field(d, "Servicio");
+      if (!name || !service) { name = "Turno manual"; service = (e.summary || "Sin título").trim(); } // cargado a mano en el calendario, sin los campos de la web
       const t = new Date(e.start.dateTime);
       const ar = new Date(t.getTime() - 3 * 3600000); // hora de Argentina
       events.push({
