@@ -531,17 +531,23 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     DB.turnos.forEach(function (x) {
       if (x.estado === "canc") return; var p = turPay(x);
       if (x.estado === "hecho" && p.tot > 0 && p.rest > 0) due.push({ x: x, v: p.rest });
-      else if (x.estado !== "hecho" && p.sena > 0) adv.push({ x: x, v: p.sena });
       else if (x.estado === "conf" && x.eid && p.n === 0 && needsSena(x.service) && !/^(Del calendario de Google|Cargado a mano)/.test(x.nota || "")) miss.push({ x: x, v: SENA });
+    });
+    DB.ingresos.forEach(function (i) { // todas las señas cargadas, estén o no asociadas a un turno
+      if (i.tipo !== "sena" || i.full) return;
+      var t = i.tid ? turOf(i.tid) : null;
+      if (t) { var pp = turPay(t); if (pp.tot > 0 && pp.rest === 0) return; } // el turno ya quedó pago
+      adv.push({ i: i, v: ars(i) });
     });
     if (!due.length && !adv.length && !miss.length) return "";
     var rowOf = function (o, act, lab, paid) { var c = DB.clients.filter(function (y) { return y.id === o.x.cid; })[0]; return '<div class="it" style="grid-template-columns:1fr auto' + (act ? " auto" : "") + (paid ? " auto" : "") + '"><div class="nm"><b>' + esc(c ? c.name : "Cliente") + "</b><span>" + esc(o.x.service) + " · " + dShort(o.x.date) + '</span></div><div class="am">' + money(o.v) + "</div>" + (act ? '<button class="btn p sm" data-act="' + act + '" data-id="' + o.x.id + '">' + lab + "</button>" : "") + (paid ? '<button class="icon" data-act="t-cobrado" data-id="' + o.x.id + '" title="Ya cobrado, sacar de la lista" aria-label="Ya cobrado">✓</button>' : "") + "</div>"; };
-    due.sort(function (a, b) { return b.v - a.v; }); adv.sort(function (a, b) { return a.x.date < b.x.date ? -1 : 1; }); miss.sort(function (a, b) { return a.x.date < b.x.date ? -1 : 1; });
+    var rowSena = function (o) { var c = DB.clients.filter(function (y) { return y.id === o.i.cid; })[0]; return '<div class="it" style="grid-template-columns:1fr auto auto auto"><div class="nm"><b>' + esc(c ? c.name : "Sin cliente") + "</b><span>" + esc(o.i.service || "Seña") + " · " + dShort(o.i.date) + '</span></div><div class="am">' + money(o.v) + '</div><button class="btn p sm" data-act="sena-saldo" data-id="' + o.i.id + '">Cobrar saldo</button><button class="icon" data-act="sena-full" data-id="' + o.i.id + '" title="Ya cobrada completa, sacar de la lista" aria-label="Ya cobrada completa">✓</button></div>'; };
+    due.sort(function (a, b) { return b.v - a.v; }); adv.sort(function (a, b) { return a.i.date < b.i.date ? 1 : -1; }); miss.sort(function (a, b) { return a.x.date < b.x.date ? -1 : 1; });
     var all = UI.pendAll || {}, nmax = function (k, arr) { return all[k] ? arr.length : 5; };
     var more = function (k, arr) { return arr.length > 5 ? '<button class="btn sm" style="margin-top:10px;width:100%" data-act="pend-all" data-id="' + k + '">' + (all[k] ? "Ver menos" : "Ver todos (" + arr.length + ")") + "</button>" : ""; };
     var cards = [];
     cards.push('<div class="card' + (due.length ? " red" : "") + '"><div class="k"><small>Saldos por cobrar</small><div class="v">' + money(sum(due, function (o) { return o.v; })) + '</div><div class="d">' + due.length + (due.length === 1 ? " trabajo realizado sin cobrar del todo" : " trabajos realizados sin cobrar del todo") + "</div></div>" + (due.length ? '<div class="list" style="margin-top:8px">' + due.slice(0, nmax("due", due)).map(function (o) { return rowOf(o, "t-saldo", "Cobrar", true); }).join("") + "</div>" + more("due", due) + '<button class="btn g sm" style="margin-top:8px;width:100%" data-act="cobrado-todo">Marcar todo lo anterior a hoy como cobrado</button>' : "") + "</div>");
-    cards.push('<div class="card"><div class="k"><small>Señas recibidas</small><div class="v">' + money(sum(adv, function (o) { return o.v; })) + '</div><div class="d">' + adv.length + (adv.length === 1 ? " turno por hacer, con seña paga" : " turnos por hacer, con seña paga") + "</div></div>" + (adv.length ? '<div class="list" style="margin-top:8px">' + adv.slice(0, nmax("adv", adv)).map(function (o) { return rowOf(o, "", ""); }).join("") + "</div>" + more("adv", adv) : "") + "</div>");
+    cards.push('<div class="card"><div class="k"><small>Señas recibidas</small><div class="v">' + money(sum(adv, function (o) { return o.v; })) + '</div><div class="d">' + adv.length + (adv.length === 1 ? " seña cargada, falta cobrar el resto" : " señas cargadas, falta cobrar el resto") + "</div></div>" + (adv.length ? '<div class="list" style="margin-top:8px">' + adv.slice(0, nmax("adv", adv)).map(rowSena).join("") + "</div>" + more("adv", adv) : "") + "</div>");
     if (miss.length) cards.push('<div class="card"><div class="k"><small>Seña confirmada sin cargar</small><div class="v">' + miss.length + '</div><div class="d">' + (miss.length === 1 ? "reserva de la web ya confirmada, falta registrar el ingreso" : "reservas de la web ya confirmadas, falta registrar el ingreso") + '</div></div><div class="list" style="margin-top:8px">' + miss.slice(0, nmax("miss", miss)).map(function (o) { return rowOf({ x: o.x, v: SENA }, "t-sena", "Cargar seña"); }).join("") + "</div>" + more("miss", miss) + "</div>");
     return '<div class="sec"><h2>Señas y saldos</h2><div class="grid ' + (cards.length > 2 ? "three" : "two") + '">' + cards.join("") + "</div></div>";
   }
@@ -724,7 +730,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       '<div id="f-fxw"' + (usd ? "" : " hidden") + ">" + fld("Cotización del dólar (pesos por cada US$ 1)", '<input type="number" id="f-fx" inputmode="decimal" min="0" step="any" value="' + (i.fx || lastFx() || "") + '" placeholder="Ej: 1450">') + '<p class="hint" id="f-conv"></p></div>' +
       fld("Medio de pago", sel("f-pago", PAGOS, i.pago)) +
       '<p class="hint" id="f-hint"></p><p class="hint" id="f-link"></p>' +
-      '<input type="hidden" id="f-veh" value="' + esc(i.veh || "auto") + '"><input type="hidden" id="f-tid" value="' + esc(i.tid || "") + '"><input type="hidden" id="f-nota" value="' + esc(i.nota || "") + '"><input type="hidden" id="f-done" value="' + (i.done ? "1" : "") + '">' +
+      '<input type="hidden" id="f-sid" value="' + esc(i.sid || "") + '"><input type="hidden" id="f-veh" value="' + esc(i.veh || "auto") + '"><input type="hidden" id="f-tid" value="' + esc(i.tid || "") + '"><input type="hidden" id="f-nota" value="' + esc(i.nota || "") + '"><input type="hidden" id="f-done" value="' + (i.done ? "1" : "") + '">' +
       '<div class="mfoot"><button class="btn" data-act="close">Cancelar</button><button class="btn p" data-act="save-ing" data-id="' + (i.id || "") + '">Guardar</button></div>');
     autoAmt(!i.amount); conv("f");
   }
@@ -846,6 +852,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       if (tipo === "sena") { if (tt.estado === "pend") tt.estado = "conf"; }
       else if (done || (turPay(tt).rest === 0 && turPay(tt).tot > 0 && tt.date <= today())) tt.estado = "hecho";
     }
+    var sid = gv("f-sid"); if (sid) { var sr = DB.ingresos.filter(function (x) { return x.id === sid; })[0]; if (sr) sr.full = true; } // la seña pasa a cobrada completa
     save(); closeM(); UI.month = date.slice(0, 7); render(); toast("Cobro guardado");
   }
   function saveGas(id) {
@@ -957,6 +964,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     wa: function () {},
     exp: function () { download("rdetail-panel-" + today() + ".json", JSON.stringify(DB), "application/json"); toast("Copia descargada"); },
     csv: exportCsv,
+    "sena-full": function (id) { var i = DB.ingresos.filter(function (x) { return x.id === id; })[0]; if (!i) return; i.full = true; save(); render(); toast("Seña marcada como cobrada completa"); },
+    "sena-saldo": function (id) {
+      var i = DB.ingresos.filter(function (x) { return x.id === id; })[0]; if (!i) return;
+      var t = i.tid ? turOf(i.tid) : null, p = t ? turPay(t) : null, rest = p && p.tot > 0 ? p.rest : Math.max(0, priceOf(i.service, i.veh) - ars(i));
+      formIng(null, { date: today(), veh: i.veh || "auto", service: i.service || "", pago: "Transferencia", amount: rest || "", cid: i.cid, tid: i.tid || "", tipo: "saldo", sid: i.id });
+    },
     "t-cobrado": function (id) { var x = turOf(id); if (!x) return; x.total = 0; x.nota = (x.nota ? x.nota + " · " : "") + "Marcado como cobrado"; save(); render(); toast("Sacado de la lista"); },
     "cobrado-todo": function () {
       var t = today(), l = DB.turnos.filter(function (x) { if (x.estado !== "hecho" || x.date >= t) return false; var p = turPay(x); return p.tot > 0 && p.rest > 0; });
