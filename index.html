@@ -329,23 +329,38 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     if (QUEUE.length) return flush();
     return api("sync", { ops: [] }).then(function (r) { setStatus("ok"); if (!QUEUE.length) applyServer(r.data); }).catch(function (e) { if (e.message !== "auth") setStatus(navigator.onLine === false ? "off" : "err"); });
   }
+  // ¿ese evento del calendario ya está cargado en el panel? (turnos hechos a mano o importados antes)
+  function nrm(t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim(); }
+  function toks(t) { return nrm(t).split(" ").filter(function (w) { return w.length >= 3; }); }
+  function calMatch(e) {
+    var dg = String(e.phone || "").replace(/\D/g, "").slice(-8), et = toks(e.name + " " + (e.title || "")), cand = DB.turnos.filter(function (x) { return !x.eid && x.estado !== "canc" && x.date === e.date; });
+    var byInfo = cand.filter(function (x) {
+      var c = DB.clients.filter(function (y) { return y.id === x.cid; })[0]; if (!c) return false;
+      if (dg.length === 8 && String(c.phone || "").replace(/\D/g, "").slice(-8) === dg) return true;
+      var ct = toks(c.name); return ct.some(function (w) { return et.indexOf(w) >= 0; });
+    });
+    if (byInfo.length) { var same = byInfo.filter(function (x) { return x.service === e.service; }); return same[0] || byInfo[0]; }
+    var bySvc = cand.filter(function (x) { return x.service === e.service; });
+    return bySvc.length === 1 ? bySvc[0] : null;
+  }
   // turnos reservados en la web (Google Calendar) → panel
   function syncCal(manual) {
     if (DEMO || !TOKEN) return Promise.resolve();
     return api("calendar", null, "GET").then(function (r) {
       if (!r.enabled) { if (manual) toast("El calendario no está conectado"); return; }
-      var seen = {}, added = 0, changed = 0, t = today();
+      var seen = {}, added = 0, skipped = 0, changed = 0, t = today();
       r.events.forEach(function (e) {
         seen[e.eid] = 1;
         var tu = DB.turnos.filter(function (x) { return x.eid === e.eid; })[0];
-        if (tu) { if (tu.estado === "pend" && e.estado === "conf") { tu.estado = "conf"; changed++; } if (tu.date !== e.date || tu.time !== e.time) { tu.date = e.date; tu.time = e.time; changed++; } return; }
+        if (tu) { if (tu.estado === "pend" && e.estado === "conf") { tu.estado = "conf"; changed++; } if (tu.date !== e.date || (!e.allDay && tu.time !== e.time)) { tu.date = e.date; if (!e.allDay) tu.time = e.time; changed++; } return; }
+        var ya = calMatch(e); if (ya) { ya.eid = e.eid; skipped++; changed++; return; }
         var dg = String(e.phone).replace(/\D/g, ""), c = DB.clients.filter(function (x) { return (dg && String(x.phone).replace(/\D/g, "") === dg) || x.name.toLowerCase() === e.name.toLowerCase(); })[0];
         if (!c) { c = { id: uid(), name: e.name, phone: e.phone, vehicle: "", plate: "", notes: e.email ? "Mail: " + e.email : "" }; DB.clients.push(c); }
-        DB.turnos.push({ id: uid(), eid: e.eid, date: e.date, time: e.time, cid: c.id, veh: e.veh, service: e.service, estado: e.estado, nota: e.manual ? "Cargado a mano en el calendario" : "Reservó desde la web" }); added++;
+        DB.turnos.push({ id: uid(), eid: e.eid, date: e.date, time: e.time, cid: c.id, veh: e.veh, service: e.service, estado: e.estado, nota: e.manual ? "Del calendario de Google · revisar: " + e.title : "Reservó desde la web" }); added++;
       });
       DB.turnos.forEach(function (x) { if (x.eid && !seen[x.eid] && x.date >= r.from && x.date >= t && (x.estado === "pend" || x.estado === "conf")) { x.estado = "canc"; x.nota = (x.nota ? x.nota + " · " : "") + "Se liberó o se borró del calendario"; changed++; } });
       if (added || changed) { save(); render(); }
-      if (manual) toast(added ? added + (added === 1 ? " turno nuevo" : " turnos nuevos") + " de la web" : "Todo al día");
+      if (manual) toast(added ? added + (added === 1 ? " turno nuevo" : " turnos nuevos") + " del calendario" + (skipped ? " · " + skipped + " ya estaban" : "") : (skipped ? "Todo al día · " + skipped + " ya estaban cargados" : "Todo al día"));
     }).catch(function (e) { if (manual && e.message !== "auth") toast("No se pudo leer el calendario"); });
   }
   function boot() {
@@ -684,7 +699,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   var editIng = "";
   function formIng(i, pre) {
     i = i || pre || { date: today(), veh: "auto", service: "", pago: "Efectivo", amount: "" };
-    var c = i.cid ? DB.clients.filter(function (x) { return x.id === i.cid; })[0] : null, usd = i.cur === "USD", req = ' <span class="rq">*</span>';
+    var c = i.cid ? DB.clients.filter(function (x) { return x.id === i.cid; })[0] : null, usd = i.cur === "USD", req = "";
     editIng = i.id || "";
     openM('<h3>' + (i.id ? "Editar cobro" : "Nuevo cobro") + '<button class="icon" data-act="close">✕</button></h3>' + cliList() +
       fld("Fecha", '<input type="date" id="f-date" value="' + i.date + '">') +
@@ -800,12 +815,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   // ---------- guardar ----------
   function saveIng(id) {
     var date = gv("f-date"), name = gv("f-name"), tipo = gv("f-tipo"), tid = gv("f-tid"), done = gv("f-done") === "1", cur = gv("f-cur") === "USD" ? "USD" : "ARS", amt = cur === "USD" ? Math.round((+gv("f-amt") || 0) * 100) / 100 : Math.round(+gv("f-amt") || 0), fx = cur === "USD" ? Math.round((+gv("f-fx") || 0) * 100) / 100 : 0;
-    if (!date) return toast("Falta la fecha");
-    if (digits(gv("f-phone")).length < 8) return toast("Falta el teléfono (con código de área)");
-    if (!gv("f-svc")) return toast("Falta elegir el servicio");
-    if (!tipo) return toast("Falta elegir el tipo de cobro");
-    if (!amt) return toast("Falta el monto");
-    if (cur === "USD" && !fx) return toast("Falta la cotización del dólar");
+    if (cur === "USD" && amt && !fx) return toast("Falta la cotización del dólar");
+    if (!date) date = today(); if (!tipo) tipo = "total";
     var ph = gv("f-phone").trim(), pc = findByPhone(ph); if (!name.trim()) name = pc ? pc.name : ph;
     var c = ensureClient(name, ph), rec = id ? DB.ingresos.filter(function (x) { return x.id === id; })[0] : null, isNew = !rec;
     if (tid === "__new") {
@@ -813,7 +824,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       DB.turnos.push(nt); tid = nt.id;
     }
     if (!rec) { rec = { id: uid() }; DB.ingresos.push(rec); }
-    rec.date = date; rec.cid = c ? c.id : ""; rec.veh = gv("f-veh"); rec.service = gv("f-svc"); rec.amount = amt; rec.cur = cur; if (cur === "USD") { rec.fx = fx; lsSet("rdp_fx", String(fx)); } else delete rec.fx; rec.pago = gv("f-pago"); rec.nota = gv("f-nota"); rec.tipo = tipo; if (tid) rec.tid = tid; else delete rec.tid;
+    rec.date = date; rec.cid = c ? c.id : ""; rec.veh = gv("f-veh"); rec.service = gv("f-svc") || "Sin especificar"; rec.amount = amt; rec.cur = cur; if (cur === "USD") { rec.fx = fx; lsSet("rdp_fx", String(fx)); } else delete rec.fx; rec.pago = gv("f-pago"); rec.nota = gv("f-nota"); rec.tipo = tipo; if (tid) rec.tid = tid; else delete rec.tid;
     if (c && gv("f-veh") && !c.vehicle) { /* sin marca: se completa desde la ficha */ }
     if (isNew && c && tipo !== "sena") makeFollow(rec);
     var tt = turOf(tid);
