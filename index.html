@@ -527,29 +527,44 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     return h + "</div></div></div>";
   }
   function vPend() {
-    var due = [], adv = [], miss = [];
+    var rows = [], miss = [], t0 = today();
+    var cl = function (id) { return DB.clients.filter(function (y) { return y.id === id; })[0]; };
+    var ago = function (d) { return Math.round((new Date(t0 + "T12:00:00") - new Date(d + "T12:00:00")) / 864e5); };
+    // trabajos con cobros cargados y saldo pendiente
     DB.turnos.forEach(function (x) {
       if (x.estado === "canc") return; var p = turPay(x);
-      if (x.estado === "hecho" && p.tot > 0 && p.rest > 0) due.push({ x: x, v: p.rest });
-      else if (x.estado === "conf" && x.eid && p.n === 0 && needsSena(x.service) && !/^(Del calendario de Google|Cargado a mano)/.test(x.nota || "")) miss.push({ x: x, v: SENA });
+      if (p.n > 0 && p.tot > 0 && p.rest > 0) {
+        var last = DB.ingresos.filter(function (i) { return i.tid === x.id; }).map(function (i) { return i.date; }).sort().pop() || x.date;
+        rows.push({ k: "t", x: x, cid: x.cid, service: x.service, date: last, paid: p.paid, rest: p.rest });
+      } else if (x.estado === "conf" && x.eid && p.n === 0 && needsSena(x.service) && !/^(Del calendario de Google|Cargado a mano)/.test(x.nota || "")) miss.push({ x: x, v: SENA });
     });
-    DB.ingresos.forEach(function (i) { // todas las señas cargadas, estén o no asociadas a un turno
+    // señas sueltas (sin turno) o de turnos sin precio de lista
+    DB.ingresos.forEach(function (i) {
       if (i.tipo !== "sena" || i.full) return;
       var t = i.tid ? turOf(i.tid) : null;
-      if (t) { var pp = turPay(t); if (pp.tot > 0 && pp.rest === 0) return; } // el turno ya quedó pago
-      adv.push({ i: i, v: ars(i) });
+      if (t && turTotal(t) > 0) return; // ese trabajo ya cuenta por su turno
+      var tot = +i.total > 0 ? +i.total : priceOf(i.service, i.veh), paid = ars(i), rest = tot > 0 ? Math.max(0, tot - paid) : null;
+      if (rest === 0) return;
+      rows.push({ k: "s", i: i, cid: i.cid, service: i.service, date: i.date, paid: paid, rest: rest });
     });
-    if (!due.length && !adv.length && !miss.length) return "";
-    var rowOf = function (o, act, lab, paid) { var c = DB.clients.filter(function (y) { return y.id === o.x.cid; })[0]; return '<div class="it" style="grid-template-columns:1fr auto' + (act ? " auto" : "") + (paid ? " auto" : "") + '"><div class="nm"><b>' + esc(c ? c.name : "Cliente") + "</b><span>" + esc(o.x.service) + " · " + dShort(o.x.date) + '</span></div><div class="am">' + money(o.v) + "</div>" + (act ? '<button class="btn p sm" data-act="' + act + '" data-id="' + o.x.id + '">' + lab + "</button>" : "") + (paid ? '<button class="icon" data-act="t-cobrado" data-id="' + o.x.id + '" title="Ya cobrado, sacar de la lista" aria-label="Ya cobrado">✓</button>' : "") + "</div>"; };
-    var rowSena = function (o) { var c = DB.clients.filter(function (y) { return y.id === o.i.cid; })[0]; return '<div class="it" style="grid-template-columns:1fr auto auto auto"><div class="nm"><b>' + esc(c ? c.name : "Sin cliente") + "</b><span>" + esc(o.i.service || "Seña") + " · " + dShort(o.i.date) + '</span></div><div class="am">' + money(o.v) + '</div><button class="btn p sm" data-act="sena-saldo" data-id="' + o.i.id + '">Cobrar saldo</button><button class="icon" data-act="sena-full" data-id="' + o.i.id + '" title="Ya cobrada completa, sacar de la lista" aria-label="Ya cobrada completa">✓</button></div>'; };
-    due.sort(function (a, b) { return b.v - a.v; }); adv.sort(function (a, b) { return a.i.date < b.i.date ? 1 : -1; }); miss.sort(function (a, b) { return a.x.date < b.x.date ? -1 : 1; });
-    var all = UI.pendAll || {}, nmax = function (k, arr) { return all[k] ? arr.length : 5; };
-    var more = function (k, arr) { return arr.length > 5 ? '<button class="btn sm" style="margin-top:10px;width:100%" data-act="pend-all" data-id="' + k + '">' + (all[k] ? "Ver menos" : "Ver todos (" + arr.length + ")") + "</button>" : ""; };
-    var cards = [];
-    cards.push('<div class="card' + (due.length ? " red" : "") + '"><div class="k"><small>Saldos por cobrar</small><div class="v">' + money(sum(due, function (o) { return o.v; })) + '</div><div class="d">' + due.length + (due.length === 1 ? " trabajo realizado sin cobrar del todo" : " trabajos realizados sin cobrar del todo") + "</div></div>" + (due.length ? '<div class="list" style="margin-top:8px">' + due.slice(0, nmax("due", due)).map(function (o) { return rowOf(o, "t-saldo", "Cobrar", true); }).join("") + "</div>" + more("due", due) + '<button class="btn g sm" style="margin-top:8px;width:100%" data-act="cobrado-todo">Marcar todo lo anterior a hoy como cobrado</button>' : "") + "</div>");
-    cards.push('<div class="card"><div class="k"><small>Señas recibidas</small><div class="v">' + money(sum(adv, function (o) { return o.v; })) + '</div><div class="d">' + adv.length + (adv.length === 1 ? " seña cargada, falta cobrar el resto" : " señas cargadas, falta cobrar el resto") + "</div></div>" + (adv.length ? '<div class="list" style="margin-top:8px">' + adv.slice(0, nmax("adv", adv)).map(rowSena).join("") + "</div>" + more("adv", adv) : "") + "</div>");
-    if (miss.length) cards.push('<div class="card"><div class="k"><small>Seña confirmada sin cargar</small><div class="v">' + miss.length + '</div><div class="d">' + (miss.length === 1 ? "reserva de la web ya confirmada, falta registrar el ingreso" : "reservas de la web ya confirmadas, falta registrar el ingreso") + '</div></div><div class="list" style="margin-top:8px">' + miss.slice(0, nmax("miss", miss)).map(function (o) { return rowOf({ x: o.x, v: SENA }, "t-sena", "Cargar seña"); }).join("") + "</div>" + more("miss", miss) + "</div>");
-    return '<div class="sec"><h2>Señas y saldos</h2><div class="grid ' + (cards.length > 2 ? "three" : "two") + '">' + cards.join("") + "</div></div>";
+    if (!rows.length && !miss.length) return "";
+    rows.sort(function (a, b) { return a.date < b.date ? -1 : 1; }); // la más vieja primero
+    miss.sort(function (a, b) { return a.x.date < b.x.date ? -1 : 1; });
+    var q = nrm(UI.pq || ""), shown = q ? rows.filter(function (r) { var c = cl(r.cid); return nrm((c ? c.name : "") + " " + (r.service || "")).indexOf(q) >= 0; }) : rows;
+    var all = UI.pendAll || {}, LIM = 8, more = function (k, arr) { return arr.length > LIM ? '<button class="btn sm" style="margin-top:10px;width:100%" data-act="pend-all" data-id="' + k + '">' + (all[k] ? "Ver menos" : "Ver todos (" + arr.length + ")") + "</button>" : ""; };
+    var rowCob = function (r) {
+      var c = cl(r.cid), d = ago(r.date), age = d <= 0 ? "hoy" : d === 1 ? "ayer" : "hace " + d + " días", name = c ? c.name : "Sin cliente";
+      var wa = c && c.phone ? '<a class="btn wa sm" target="_blank" rel="noopener" href="' + waLink(c.phone, "Hola " + name.split(" ")[0] + "! Te escribimos de RDETAIL. Te recordamos que el saldo de tu " + (r.service || "servicio") + (r.rest != null ? " es de " + money(r.rest) : " está pendiente") + ". ¿Cuándo pasás a abonarlo?") + '">WhatsApp</a>' : "";
+      var id = r.k === "t" ? r.x.id : r.i.id, a1 = r.k === "t" ? "t-saldo" : "sena-saldo", a2 = r.k === "t" ? "t-cobrado" : "sena-full";
+      return '<div class="it" style="grid-template-columns:1fr auto"><div class="nm"><b>' + esc(name) + "</b><span>" + esc(r.service || "Seña") + " · pagó " + money(r.paid) + " · " + dShort(r.date) + " · " + (d > 15 ? '<b style="color:#f0343b">' + age + "</b>" : age) + '</span></div><div class="am">' + (r.rest == null ? "A convenir" : money(r.rest)) + '</div>' +
+        '<div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;align-items:center">' + wa + '<button class="btn p sm" data-act="' + a1 + '" data-id="' + id + '">Cobrar saldo</button><button class="icon" data-act="' + a2 + '" data-id="' + id + '" title="Ya cobrado, sacar de la lista" aria-label="Ya cobrado">✓</button></div></div>';
+    };
+    var tot = sum(rows, function (r) { return r.rest || 0; }), old = rows.filter(function (r) { return ago(r.date) > 15; }).length, cards = [];
+    if (rows.length) cards.push('<div class="card red"><div class="k"><small>Por cobrar</small><div class="v">' + money(tot) + '</div><div class="d">' + rows.length + (rows.length === 1 ? " trabajo con saldo pendiente" : " trabajos con saldo pendiente") + (old ? ' · <b style="color:#f0343b">' + old + " con más de 15 días</b>" : "") + "</div></div>" +
+      (rows.length > 4 ? '<input class="search" id="pq" type="search" placeholder="Buscar por cliente o servicio" value="' + esc(UI.pq || "") + '" style="margin-top:12px;margin-bottom:0">' : "") +
+      (shown.length ? '<div class="list" style="margin-top:8px">' + shown.slice(0, all.due ? shown.length : LIM).map(rowCob).join("") + "</div>" + more("due", shown) : '<div class="empty" style="margin-top:8px">Nadie coincide con esa búsqueda.</div>') + "</div>");
+    if (miss.length) cards.push('<div class="card"><div class="k"><small>Seña confirmada sin cargar</small><div class="v">' + miss.length + '</div><div class="d">' + (miss.length === 1 ? "reserva de la web ya confirmada, falta registrar el ingreso" : "reservas de la web ya confirmadas, falta registrar el ingreso") + '</div></div><div class="list" style="margin-top:8px">' + miss.slice(0, all.miss ? miss.length : 5).map(function (o) { var c = cl(o.x.cid); return '<div class="it" style="grid-template-columns:1fr auto auto"><div class="nm"><b>' + esc(c ? c.name : "Cliente") + "</b><span>" + esc(o.x.service) + " · " + dShort(o.x.date) + '</span></div><div class="am">' + money(SENA) + '</div><button class="btn p sm" data-act="t-sena" data-id="' + o.x.id + '">Cargar seña</button></div>'; }).join("") + "</div>" + (miss.length > 5 ? '<button class="btn sm" style="margin-top:10px;width:100%" data-act="pend-all" data-id="miss">' + (all.miss ? "Ver menos" : "Ver todos (" + miss.length + ")") + "</button>" : "") + "</div>");
+    return '<div class="sec"><h2>Señas y saldos</h2><div class="grid' + (cards.length > 1 ? " two" : "") + '">' + cards.join("") + "</div></div>";
   }
   function rowIng(i) {
     var c = DB.clients.filter(function (x) { return x.id === i.cid; })[0];
@@ -726,6 +741,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       '<div class="f2">' + fld("Nombre", '<input type="text" id="f-name" list="cl" placeholder="Nombre y apellido" value="' + esc(c ? c.name : (i.name || "")) + '" autocomplete="off">') + fld("Teléfono" + req, '<input type="tel" id="f-phone" inputmode="tel" placeholder="11 5555-5555" value="' + esc(c ? c.phone : (i.phone || "")) + '">') + "</div>" +
       fld("Servicio" + req, sel("f-svc", [["", "Elegí el servicio"]].concat(svcOpts()), i.service || "")) +
       '<div class="f2">' + fld("Tipo de cobro" + req, sel("f-tipo", [["", "Elegí el tipo"], ["total", "Pago total"], ["sena", "Seña (adelanto)"], ["saldo", "Saldo (resto)"]], i.tipo || (i.id ? "total" : ""))) + fld("Monto cobrado" + req, '<input type="number" id="f-amt" inputmode="decimal" min="0" step="any" value="' + (i.amount || "") + '" placeholder="0">') + "</div>" +
+      '<div id="f-totw"' + (i.tipo === "sena" ? "" : " hidden") + ">" + fld("Precio total del trabajo (opcional)", '<input type="number" id="f-tot" inputmode="numeric" min="0" step="1000" value="' + (i.total || "") + '" placeholder="Vacío = precio de lista">') + '<p class="hint">Sirve para calcular cuánto resta después de la seña.</p></div>' +
       (usd ? fld("Moneda", sel("f-cur", [["ARS", "Pesos ($)"], ["USD", "Dólares (US$)"]], "USD")) : '<input type="hidden" id="f-cur" value="ARS">') +
       '<div id="f-fxw"' + (usd ? "" : " hidden") + ">" + fld("Cotización del dólar (pesos por cada US$ 1)", '<input type="number" id="f-fx" inputmode="decimal" min="0" step="any" value="' + (i.fx || lastFx() || "") + '" placeholder="Ej: 1450">') + '<p class="hint" id="f-conv"></p></div>' +
       fld("Medio de pago", sel("f-pago", PAGOS, i.pago)) +
@@ -852,6 +868,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       if (tipo === "sena") { if (tt.estado === "pend") tt.estado = "conf"; }
       else if (done || (turPay(tt).rest === 0 && turPay(tt).tot > 0 && tt.date <= today())) tt.estado = "hecho";
     }
+    if (tipo === "sena" && +gv("f-tot") > 0) rec.total = Math.round(+gv("f-tot")); else delete rec.total;
     var sid = gv("f-sid"); if (sid) { var sr = DB.ingresos.filter(function (x) { return x.id === sid; })[0]; if (sr) sr.full = true; } // la seña pasa a cobrada completa
     save(); closeM(); UI.month = date.slice(0, 7); render(); toast("Cobro guardado");
   }
@@ -967,17 +984,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     "sena-full": function (id) { var i = DB.ingresos.filter(function (x) { return x.id === id; })[0]; if (!i) return; i.full = true; save(); render(); toast("Seña marcada como cobrada completa"); },
     "sena-saldo": function (id) {
       var i = DB.ingresos.filter(function (x) { return x.id === id; })[0]; if (!i) return;
-      var t = i.tid ? turOf(i.tid) : null, p = t ? turPay(t) : null, rest = p && p.tot > 0 ? p.rest : Math.max(0, priceOf(i.service, i.veh) - ars(i));
+      var t = i.tid ? turOf(i.tid) : null, p = t ? turPay(t) : null, rest = p && p.tot > 0 ? p.rest : Math.max(0, (+i.total > 0 ? +i.total : priceOf(i.service, i.veh)) - ars(i));
       formIng(null, { date: today(), veh: i.veh || "auto", service: i.service || "", pago: "Transferencia", amount: rest || "", cid: i.cid, tid: i.tid || "", tipo: "saldo", sid: i.id });
     },
     "t-cobrado": function (id) { var x = turOf(id); if (!x) return; x.total = 0; x.nota = (x.nota ? x.nota + " · " : "") + "Marcado como cobrado"; save(); render(); toast("Sacado de la lista"); },
-    "cobrado-todo": function () {
-      var t = today(), l = DB.turnos.filter(function (x) { if (x.estado !== "hecho" || x.date >= t) return false; var p = turPay(x); return p.tot > 0 && p.rest > 0; });
-      if (!l.length) return toast("No hay nada para marcar");
-      if (!confirm("¿Marcar como cobrados los " + l.length + " trabajos anteriores a hoy? No se crean ingresos, solo salen de esta lista.")) return;
-      l.forEach(function (x) { x.total = 0; x.nota = (x.nota ? x.nota + " · " : "") + "Marcado como cobrado"; });
-      save(); render(); toast(l.length + " trabajos marcados como cobrados");
-    },
     "pend-all": function (k) { UI.pendAll = UI.pendAll || {}; UI.pendAll[k] = !UI.pendAll[k]; render(); },
     calsync: function () { syncCal(true); },
     logout: function () { logout(false); },
@@ -993,11 +1003,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   document.addEventListener("input", function (e) {
     if (e.target.id === "f-amt" || e.target.id === "f-fx") conv("f");
     if (e.target.id === "g-amt" || e.target.id === "g-fx") conv("g");
+    if (e.target.id === "pq") { UI.pq = e.target.value; var pp = e.target.selectionStart; render(); var pe = $("pq"); if (pe) { pe.focus(); pe.setSelectionRange(pp, pp); } }
     if (e.target.id === "q") { UI.q = e.target.value; var pos = e.target.selectionStart; render(); var q = $("q"); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }
   });
   document.addEventListener("change", function (e) {
     if (e.target.id === "f-svc" || e.target.id === "f-veh") autoAmt(true);
-    if (e.target.id === "f-tipo") autoAmt(true);
+    if (e.target.id === "f-tipo") { var tw = $("f-totw"); if (tw) tw.hidden = e.target.value !== "sena"; autoAmt(true); }
     if (e.target.id === "t-svc" || e.target.id === "t-veh") tpl();
     
     if (e.target.id === "f-cur") { var u = e.target.value === "USD", lp = priceOf(gv("f-svc"), gv("f-veh")); if (u) { if (+$("f-amt").value === lp) $("f-amt").value = ""; if (!$("f-fx").value) $("f-fx").value = lastFx() || ""; } autoAmt(!u); conv("f"); }
