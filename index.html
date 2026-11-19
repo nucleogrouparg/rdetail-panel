@@ -532,15 +532,15 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       if (x.estado === "canc") return; var p = turPay(x);
       if (x.estado === "hecho" && p.tot > 0 && p.rest > 0) due.push({ x: x, v: p.rest });
       else if (x.estado !== "hecho" && p.sena > 0) adv.push({ x: x, v: p.sena });
-      else if (x.estado === "conf" && x.eid && p.n === 0 && needsSena(x.service)) miss.push({ x: x, v: SENA });
+      else if (x.estado === "conf" && x.eid && p.n === 0 && needsSena(x.service) && !/^(Del calendario de Google|Cargado a mano)/.test(x.nota || "")) miss.push({ x: x, v: SENA });
     });
     if (!due.length && !adv.length && !miss.length) return "";
-    var rowOf = function (o, act, lab) { var c = DB.clients.filter(function (y) { return y.id === o.x.cid; })[0]; return '<div class="it" style="grid-template-columns:1fr auto' + (act ? " auto" : "") + '"><div class="nm"><b>' + esc(c ? c.name : "Cliente") + "</b><span>" + esc(o.x.service) + " · " + dShort(o.x.date) + '</span></div><div class="am">' + money(o.v) + "</div>" + (act ? '<button class="btn p sm" data-act="' + act + '" data-id="' + o.x.id + '">' + lab + "</button>" : "") + "</div>"; };
+    var rowOf = function (o, act, lab, paid) { var c = DB.clients.filter(function (y) { return y.id === o.x.cid; })[0]; return '<div class="it" style="grid-template-columns:1fr auto' + (act ? " auto" : "") + (paid ? " auto" : "") + '"><div class="nm"><b>' + esc(c ? c.name : "Cliente") + "</b><span>" + esc(o.x.service) + " · " + dShort(o.x.date) + '</span></div><div class="am">' + money(o.v) + "</div>" + (act ? '<button class="btn p sm" data-act="' + act + '" data-id="' + o.x.id + '">' + lab + "</button>" : "") + (paid ? '<button class="icon" data-act="t-cobrado" data-id="' + o.x.id + '" title="Ya cobrado, sacar de la lista" aria-label="Ya cobrado">✓</button>' : "") + "</div>"; };
     due.sort(function (a, b) { return b.v - a.v; }); adv.sort(function (a, b) { return a.x.date < b.x.date ? -1 : 1; }); miss.sort(function (a, b) { return a.x.date < b.x.date ? -1 : 1; });
     var all = UI.pendAll || {}, nmax = function (k, arr) { return all[k] ? arr.length : 5; };
     var more = function (k, arr) { return arr.length > 5 ? '<button class="btn sm" style="margin-top:10px;width:100%" data-act="pend-all" data-id="' + k + '">' + (all[k] ? "Ver menos" : "Ver todos (" + arr.length + ")") + "</button>" : ""; };
     var cards = [];
-    cards.push('<div class="card' + (due.length ? " red" : "") + '"><div class="k"><small>Saldos por cobrar</small><div class="v">' + money(sum(due, function (o) { return o.v; })) + '</div><div class="d">' + due.length + (due.length === 1 ? " trabajo realizado sin cobrar del todo" : " trabajos realizados sin cobrar del todo") + "</div></div>" + (due.length ? '<div class="list" style="margin-top:8px">' + due.slice(0, nmax("due", due)).map(function (o) { return rowOf(o, "t-saldo", "Cobrar"); }).join("") + "</div>" + more("due", due) : "") + "</div>");
+    cards.push('<div class="card' + (due.length ? " red" : "") + '"><div class="k"><small>Saldos por cobrar</small><div class="v">' + money(sum(due, function (o) { return o.v; })) + '</div><div class="d">' + due.length + (due.length === 1 ? " trabajo realizado sin cobrar del todo" : " trabajos realizados sin cobrar del todo") + "</div></div>" + (due.length ? '<div class="list" style="margin-top:8px">' + due.slice(0, nmax("due", due)).map(function (o) { return rowOf(o, "t-saldo", "Cobrar", true); }).join("") + "</div>" + more("due", due) + '<button class="btn g sm" style="margin-top:8px;width:100%" data-act="cobrado-todo">Marcar todo lo anterior a hoy como cobrado</button>' : "") + "</div>");
     cards.push('<div class="card"><div class="k"><small>Señas recibidas</small><div class="v">' + money(sum(adv, function (o) { return o.v; })) + '</div><div class="d">' + adv.length + (adv.length === 1 ? " turno por hacer, con seña paga" : " turnos por hacer, con seña paga") + "</div></div>" + (adv.length ? '<div class="list" style="margin-top:8px">' + adv.slice(0, nmax("adv", adv)).map(function (o) { return rowOf(o, "", ""); }).join("") + "</div>" + more("adv", adv) : "") + "</div>");
     if (miss.length) cards.push('<div class="card"><div class="k"><small>Seña confirmada sin cargar</small><div class="v">' + miss.length + '</div><div class="d">' + (miss.length === 1 ? "reserva de la web ya confirmada, falta registrar el ingreso" : "reservas de la web ya confirmadas, falta registrar el ingreso") + '</div></div><div class="list" style="margin-top:8px">' + miss.slice(0, nmax("miss", miss)).map(function (o) { return rowOf({ x: o.x, v: SENA }, "t-sena", "Cargar seña"); }).join("") + "</div>" + more("miss", miss) + "</div>");
     return '<div class="sec"><h2>Señas y saldos</h2><div class="grid ' + (cards.length > 2 ? "three" : "two") + '">' + cards.join("") + "</div></div>";
@@ -957,6 +957,14 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     wa: function () {},
     exp: function () { download("rdetail-panel-" + today() + ".json", JSON.stringify(DB), "application/json"); toast("Copia descargada"); },
     csv: exportCsv,
+    "t-cobrado": function (id) { var x = turOf(id); if (!x) return; x.total = 0; x.nota = (x.nota ? x.nota + " · " : "") + "Marcado como cobrado"; save(); render(); toast("Sacado de la lista"); },
+    "cobrado-todo": function () {
+      var t = today(), l = DB.turnos.filter(function (x) { if (x.estado !== "hecho" || x.date >= t) return false; var p = turPay(x); return p.tot > 0 && p.rest > 0; });
+      if (!l.length) return toast("No hay nada para marcar");
+      if (!confirm("¿Marcar como cobrados los " + l.length + " trabajos anteriores a hoy? No se crean ingresos, solo salen de esta lista.")) return;
+      l.forEach(function (x) { x.total = 0; x.nota = (x.nota ? x.nota + " · " : "") + "Marcado como cobrado"; });
+      save(); render(); toast(l.length + " trabajos marcados como cobrados");
+    },
     "pend-all": function (k) { UI.pendAll = UI.pendAll || {}; UI.pendAll[k] = !UI.pendAll[k]; render(); },
     calsync: function () { syncCal(true); },
     logout: function () { logout(false); },
