@@ -5,6 +5,8 @@ const pad = (n) => (n < 10 ? "0" + n : "" + n);
 // Servicio probable a partir del título escrito a mano en Google Calendar
 const SV = [[/preventa/i, "Preventa"], [/interior.*motor|motor.*interior/i, "Promo interior, motor y lavado"], [/interior/i, "Promo interior y lavado"], [/premium/i, "Lavado premium"], [/abrillant|puli/i, "Abrillantado"], [/motor/i, "Lavado de motor"], [/cer[aá]mic/i, "Tratamiento cerámico"], [/acr[ií]lic/i, "Tratamiento acrílico"], [/polariz/i, "Polarizado"], [/sacabollo/i, "Sacabollos"], [/plan/i, "Plan mensual"]];
 const guessService = (t) => { for (const [re, n] of SV) if (re.test(t)) return n; return "Otro"; };
+// Precio escrito a mano en el título, ej: "$170.000 Corolla interior motor y lavado" o "$170,000 ..."
+const guessTotal = (t) => { const m = /\$\s*([\d][\d.,]*\d|\d)/.exec(t || ""); if (!m) return 0; const n = parseInt(m[1].replace(/\D/g, ""), 10); return isNaN(n) ? 0 : n; };
 const cleanName = (t) => (t || "").replace(/\$\s?[\d.,]+/g, "").replace(/\b(restan?|resta|se[nñ]a|abona|abonó|pag[oó])\b.*$/i, "").replace(/\s+/g, " ").trim().slice(0, 60);
 function field(desc, label) {
   const m = new RegExp("^" + label + ":\\s*(.*)$", "mi").exec(desc || "");
@@ -41,7 +43,7 @@ exports.handler = async (event) => {
         // turno cargado a mano en Google Calendar
         const title = sum.trim(); if (!title) return;
         const ph = (/(\+?\d[\d\s().-]{7,}\d)/.exec(d) || [])[1] || "";
-        events.push({ eid: e.id, manual: true, allDay: !e.start.dateTime, title, date, time, name: cleanName(title) || "Sin nombre", service: guessService(title + " " + d), veh: /camioneta|hilux|amarok|ranger|s10|frontier|duster|kangoo|partner|berlingo/i.test(title) ? "camioneta" : "auto", phone: ph.trim(), email: "", estado: /^SEÑA PENDIENTE/i.test(title) ? "pend" : (date < todayAr ? "hecho" : "conf") });
+        events.push({ eid: e.id, manual: true, allDay: !e.start.dateTime, title, date, time, name: cleanName(title) || "Sin nombre", service: guessService(title + " " + d), total: guessTotal(title), veh: /camioneta|hilux|amarok|ranger|s10|frontier|duster|kangoo|partner|berlingo/i.test(title) ? "camioneta" : "auto", phone: ph.trim(), email: "", estado: /^SEÑA PENDIENTE/i.test(title) ? "pend" : (date < todayAr ? "hecho" : "conf") });
       });
     });
     events.sort((a, b) => (a.date + a.time) < (b.date + b.time) ? -1 : 1);
