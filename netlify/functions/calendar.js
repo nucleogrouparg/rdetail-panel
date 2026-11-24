@@ -6,7 +6,8 @@ const pad = (n) => (n < 10 ? "0" + n : "" + n);
 const SV = [[/preventa/i, "Preventa"], [/interior.*motor|motor.*interior/i, "Promo interior, motor y lavado"], [/interior/i, "Promo interior y lavado"], [/premium/i, "Lavado premium"], [/abrillant|puli/i, "Abrillantado"], [/motor/i, "Lavado de motor"], [/cer[aá]mic/i, "Tratamiento cerámico"], [/acr[ií]lic/i, "Tratamiento acrílico"], [/polariz/i, "Polarizado"], [/sacabollo/i, "Sacabollos"], [/plan/i, "Plan mensual"]];
 const guessService = (t) => { for (const [re, n] of SV) if (re.test(t)) return n; return "Otro"; };
 // Precio escrito a mano en el título, ej: "$170.000 Corolla interior motor y lavado" o "$170,000 ..."
-const guessTotal = (t) => { const m = /\$\s*([\d][\d.,]*\d|\d)/.exec(t || ""); if (!m) return 0; const n = parseInt(m[1].replace(/\D/g, ""), 10); return isNaN(n) ? 0 : n; };
+// Si el título aclara que ese monto es una seña o lo que falta cobrar, no es el precio total: mejor no adivinar nada.
+const guessTotal = (t) => { if (/\b(restan?|resta|se[nñ]a|abon[oó]?|pag[oó])\b/i.test(t || "")) return 0; const m = /\$\s*([\d][\d.,]*\d|\d)/.exec(t || ""); if (!m) return 0; const n = parseInt(m[1].replace(/\D/g, ""), 10); return isNaN(n) ? 0 : n; };
 const cleanName = (t) => (t || "").replace(/\$\s?[\d.,]+/g, "").replace(/\b(restan?|resta|se[nñ]a|abona|abonó|pag[oó])\b.*$/i, "").replace(/\s+/g, " ").trim().slice(0, 60);
 function field(desc, label) {
   const m = new RegExp("^" + label + ":\\s*(.*)$", "mi").exec(desc || "");

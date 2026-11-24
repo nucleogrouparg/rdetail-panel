@@ -364,11 +364,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
             changed++;
           }
         }
-        if (tu) { if (tu.estado === "pend" && e.estado === "conf") { tu.estado = "conf"; changed++; } if (tu.date !== e.date || (!e.allDay && tu.time !== e.time)) { tu.date = e.date; if (!e.allDay) tu.time = e.time; changed++; } if ((tu.total === undefined || tu.total === null || tu.total === "") && e.total) { tu.total = e.total; changed++; } return; }
+        if (tu) { if (tu.estado === "pend" && e.estado === "conf") { tu.estado = "conf"; changed++; } if (tu.date !== e.date || (!e.allDay && tu.time !== e.time)) { tu.date = e.date; if (!e.allDay) tu.time = e.time; changed++; } if ((tu.total === undefined || tu.total === null || tu.total === "") && e.total) { tu.total = e.total; tu.sinConfirmar = true; changed++; } return; }
         var ya = calMatch(e); if (ya) { ya.eid = e.eid; skipped++; changed++; return; }
         var dg = String(e.phone).replace(/\D/g, ""), c = DB.clients.filter(function (x) { return (dg && String(x.phone).replace(/\D/g, "") === dg) || x.name.toLowerCase() === e.name.toLowerCase(); })[0];
         if (!c) { c = { id: uid(), name: e.name, phone: e.phone, vehicle: "", plate: "", notes: e.email ? "Mail: " + e.email : "" }; DB.clients.push(c); }
-        DB.turnos.push({ id: uid(), eid: e.eid, date: e.date, time: e.time, cid: c.id, veh: e.veh, service: e.service, total: e.total || "", estado: e.estado, nota: e.manual ? "Del calendario de Google · revisar: " + e.title : "Reservó desde la web" }); added++;
+        var nt = { id: uid(), eid: e.eid, date: e.date, time: e.time, cid: c.id, veh: e.veh, service: e.service, total: e.total || "", estado: e.estado, nota: e.manual ? "Del calendario de Google · revisar: " + e.title : "Reservó desde la web" };
+        if (e.manual && e.total) nt.sinConfirmar = true;
+        DB.turnos.push(nt); added++;
       });
       DB.turnos.forEach(function (x) { if (x.eid && !seen[x.eid] && x.date >= r.from && x.date >= t && (x.estado === "pend" || x.estado === "conf")) { x.estado = "canc"; x.nota = (x.nota ? x.nota + " · " : "") + "Se liberó o se borró del calendario"; changed++; } });
       var gen = DB.clients.filter(function (y) { return y.name === "Turno manual"; })[0];
@@ -455,7 +457,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   function turTotal(t) { var v = t.total; return v !== undefined && v !== null && v !== "" ? Math.round(+v) : priceOf(t.service, t.veh); }
   function turPay(t, ex) {
     var p = DB.ingresos.filter(function (i) { return i.tid === t.id && i.id !== ex; }), tot = turTotal(t), paid = sum(p, ars);
-    return { tot: tot, paid: paid, sena: sum(p.filter(function (i) { return i.tipo === "sena"; }), ars), n: p.length, rest: tot > 0 ? Math.max(0, tot - paid) : null };
+    return { tot: tot, paid: paid, sena: sum(p.filter(function (i) { return i.tipo === "sena"; }), ars), n: p.length, rest: t.cobrado ? 0 : (tot > 0 ? Math.max(0, tot - paid) : null) };
   }
   function tagIng(i) {
     var t = turOf(i.tid);
@@ -658,8 +660,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   }
   function turCard(x) {
     var c = DB.clients.filter(function (y) { return y.id === x.cid; })[0], e = ESTADOS[x.estado] || ESTADOS.conf, p = turPay(x), open = x.estado !== "hecho" && x.estado !== "canc";
-    var needSena = open && needsSena(x.service) && p.sena === 0, charge = x.estado === "hecho" && (p.rest === null ? p.n === 0 : p.rest > 0);
-    return '<div class="fu"><div class="row"><h4>' + dLong(x.date) + " · " + esc(x.time) + ' hs</h4><span class="chip ' + e[1] + '" style="margin-left:auto">' + e[0] + "</span></div><p><b style=\"color:var(--off)\">" + esc(c ? c.name : "Cliente") + "</b> · " + esc(x.service) + " · " + (x.veh === "camioneta" ? "Camioneta" : "Auto") + (x.nota ? " · " + esc(x.nota) : "") + "</p>" + payBlock(x) + '<div class="acts">' +
+    var needSena = open && needsSena(x.service) && p.sena === 0, charge = x.estado === "hecho" && x.date >= today() && (p.rest === null ? p.n === 0 : p.rest > 0);
+    return '<div class="fu"><div class="row"><h4>' + dLong(x.date) + " · " + esc(x.time) + ' hs</h4><span class="chip ' + e[1] + '" style="margin-left:auto">' + e[0] + "</span></div><p><b style=\"color:var(--off)\">" + esc(c ? c.name : "Cliente") + "</b> · " + esc(x.service) + " · " + (x.veh === "camioneta" ? "Camioneta" : "Auto") + (x.nota ? " · " + esc(x.nota) : "") + "</p>" + payBlock(x) +
+      (x.sinConfirmar ? '<div class="row" style="margin-top:8px"><span class="chip y">⚠ Precio sin confirmar: ' + money(turTotal(x)) + '</span><button class="btn sm" data-act="t-confirm-precio" data-id="' + x.id + '">Confirmar</button></div>' : "") +
+      '<div class="acts">' +
       (needSena ? '<button class="btn sm" data-act="t-sena" data-id="' + x.id + '">Cobrar seña</button>' : "") +
       (open ? '<button class="btn p sm" data-act="t-hecho" data-id="' + x.id + '">Realizado → cobrar</button><button class="btn g sm" data-act="t-canc" data-id="' + x.id + '">Cancelar</button>' : "") +
       (charge ? '<button class="btn p sm" data-act="t-saldo" data-id="' + x.id + '">' + (p.n ? "Cobrar saldo" : "Cobrar") + "</button>" : "") +
@@ -892,6 +896,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var c = ensureClient(name, gv("t-phone").trim()), rec = id ? DB.turnos.filter(function (x) { return x.id === id; })[0] : null;
     if (!rec) { rec = { id: uid() }; DB.turnos.push(rec); }
     rec.date = date; rec.time = gv("t-time"); rec.cid = c.id; rec.veh = gv("t-veh"); rec.service = gv("t-svc"); rec.estado = gv("t-est"); rec.nota = gv("t-nota"); rec.total = gv("t-total") === "" ? "" : Math.round(+gv("t-total") || 0);
+    delete rec.sinConfirmar;
     save(); closeM(); if (UI.sub !== "cal") UI.sub = "tur"; else UI.day = date; if (UI.sub === "cal") UI.month = date.slice(0, 7); render(); toast("Turno guardado");
   }
   function saveCli(id) {
@@ -993,7 +998,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       var t = i.tid ? turOf(i.tid) : null, p = t ? turPay(t) : null, rest = p && p.tot > 0 ? p.rest : Math.max(0, (+i.total > 0 ? +i.total : priceOf(i.service, i.veh)) - ars(i));
       formIng(null, { date: today(), veh: i.veh || "auto", service: i.service || "", pago: "Transferencia", amount: rest || "", cid: i.cid, tid: i.tid || "", tipo: "saldo", sid: i.id });
     },
-    "t-cobrado": function (id) { var x = turOf(id); if (!x) return; x.total = 0; x.nota = (x.nota ? x.nota + " · " : "") + "Marcado como cobrado"; save(); render(); toast("Sacado de la lista"); },
+    "t-cobrado": function (id) { var x = turOf(id); if (!x) return; x.cobrado = true; x.nota = (x.nota ? x.nota + " · " : "") + "Marcado como cobrado"; save(); render(); toast("Sacado de la lista"); },
+    "t-confirm-precio": function (id) { var x = turOf(id); if (!x) return; delete x.sinConfirmar; save(); render(); toast("Precio confirmado"); },
     "pend-all": function (k) { UI.pendAll = UI.pendAll || {}; UI.pendAll[k] = !UI.pendAll[k]; render(); },
     calsync: function () { syncCal(true); },
     logout: function () { logout(false); },
