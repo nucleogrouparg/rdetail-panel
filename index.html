@@ -154,7 +154,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
 .cal .c .evs{display:flex;flex-direction:column;gap:3px;width:100%;min-height:9px}
 .cal .c .evs b{display:block;font-style:normal;font-weight:600;font-size:.68rem;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2px solid var(--ok);padding-left:5px}
 .cal .c .evs b.pend{border-left-color:#e8c547}
-.cal .c .evs em{display:block;font-style:normal;font-size:.64rem;font-weight:800;color:var(--g3);padding-left:5px}
+.cal .c .evs em{display:flex;align-items:center;gap:4px;font-style:normal;font-size:.64rem;font-weight:800;color:var(--g3);padding-left:5px}
+.cal .c .evs em .tot{color:var(--ok);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal .c .evs em .more{white-space:nowrap;flex-shrink:0;margin-left:auto}
 .cal .c.off{opacity:.4}.cal .c.full{background:rgba(220,26,33,.16);border-color:rgba(220,26,33,.6)}
 .cal .c.today .n{color:var(--red-hi)}.cal .c.today{box-shadow:inset 0 0 0 1px var(--red-hi)}
 .cal .c.sel{background:var(--off);border-color:var(--off);color:var(--ink)}.cal .c.sel .n{color:var(--ink)}.cal .c.sel .evs em{color:var(--ink)}
@@ -679,7 +681,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     for (var i = 0; i < lead; i++) h += '<span class="e"></span>';
     for (var d = 1; d <= nd; d++) {
       var ds = m + "-" + pad(d), l = (by[ds] || []).slice().sort(function (a, b) { return a.time < b.time ? -1 : 1; }), dow = new Date(ds + "T12:00:00").getDay(), n = l.length;
-      var evs = l.slice(0, 2).map(function (x) { var cl = clById[x.cid]; return '<b class="' + x.estado + '">' + esc(x.time + " " + (cl ? cl.name : x.service)) + "</b>"; }).join("") + (n > 2 ? "<em>+" + (n - 2) + " más</em>" : "");
+      var dayTot = sum(l.filter(function (x) { return x.estado === "hecho"; }), turTotal), more = n > 2 ? "+" + (n - 2) + " más" : "";
+      var evs = l.slice(0, 2).map(function (x) { var cl = clById[x.cid]; return '<b class="' + x.estado + '">' + esc(x.time + " " + (cl ? cl.name : x.service)) + "</b>"; }).join("") + ((dayTot > 0 || more) ? "<em>" + (dayTot > 0 ? '<span class="tot">' + money(dayTot) + "</span>" : "") + (more ? '<span class="more">' + more + "</span>" : "") + "</em>" : "");
       h += '<button type="button" class="c' + (ds === t ? " today" : "") + (ds === UI.day ? " sel" : "") + (dow === 0 ? " off" : "") + (n >= 3 ? " full" : "") + '" data-act="pick-day" data-id="' + ds + '" aria-label="' + dLong(ds) + ", " + n + ' turnos"><span class="n">' + d + '</span><span class="evs">' + evs + "</span></button>";
     }
     h += '</div></div><div class="leg" style="margin-top:12px"><span><b style="background:var(--ok)"></b>Confirmado / realizado</span><span><b style="background:#e8c547"></b>Falta seña</span><span><b style="background:var(--red)"></b>3 o más turnos</span></div></div></div>';
