@@ -689,7 +689,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     }
     h += '</div></div><div class="leg" style="margin-top:12px"><span><b style="background:var(--ok)"></b>Confirmado / realizado</span><span><b style="background:#e8c547"></b>Falta seña</span><span><b style="background:var(--red)"></b>3 o más turnos</span></div></div></div>';
     var dl = (by[UI.day] || []).slice().sort(function (a, b) { return a.time < b.time ? -1 : 1; });
-    h += '<div class="sec"><h2>' + dLong(UI.day) + ' <span class="sp"><span class="chip ' + (dl.length >= 3 ? "r" : "") + '">' + dl.length + (dl.length === 1 ? " turno" : " turnos") + "</span></span></h2>";
+    var dlTot = sum(dl.filter(function (x) { return x.estado === "hecho"; }), function (x) { return sum(ingByTid[x.id] || [], ars); });
+    h += '<div class="sec"><h2>' + dLong(UI.day) + ' <span class="sp">' + (dlTot > 0 ? '<span class="chip ok" style="margin-right:8px">' + money(dlTot) + "</span>" : "") + '<span class="chip ' + (dl.length >= 3 ? "r" : "") + '">' + dl.length + (dl.length === 1 ? " turno" : " turnos") + "</span></span></h2>";
     if (new Date(UI.day + "T12:00:00").getDay() === 0) h += '<div class="card empty">Domingo: el taller no abre.</div>';
     else h += dl.length ? dl.map(turCard).join("") : '<div class="card empty">Día libre. Tocá "+ Turno" para agendar.</div>';
     return h + "</div>";
