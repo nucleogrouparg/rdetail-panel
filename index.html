@@ -288,12 +288,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
 
   // ---------- datos y sincronización ----------
   var API = "/.netlify/functions/";
-  var COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages"];
+  var COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages", "ig_comments"];
   var mem = {};
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
   function lsSet(k, v) { mem[k] = v; try { localStorage.setItem(k, v); } catch (e) {} }
   function lsDel(k) { delete mem[k]; try { localStorage.removeItem(k); } catch (e) {} }
-  function blank() { return { v: 1, demo: false, clients: [], turnos: [], ingresos: [], gastos: [], follow: [], ig_conversations: [], ig_messages: [] }; }
+  function blank() { return { v: 1, demo: false, clients: [], turnos: [], ingresos: [], gastos: [], follow: [], ig_conversations: [], ig_messages: [], ig_comments: [] }; }
   var DEMO = /demo/.test(location.hash);
   var DB = blank(), SNAP = {}, QUEUE = [], TOKEN = lsGet("rdp_token") || "", STATUS = "ok", flushing = false, retry = null;
   try { var c0 = JSON.parse(lsGet("rdp_cache") || "null"); if (c0 && c0.ingresos) { DB = c0; DB.demo = false; } } catch (e) {}
@@ -414,7 +414,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       else $("lg-msg").textContent = x.r.status === 401 ? "Contraseña incorrecta." : x.r.status === 503 ? "Falta terminar la configuración del panel." : "No se pudo entrar. Probá de nuevo.";
     }).catch(function () { b.disabled = false; $("lg-msg").textContent = "Sin conexión. Probá de nuevo."; });
   }
-  var UI = { tab: "num", month: curM(), sub: "seg", q: "", day: "", crmConv: "" };
+  var UI = { tab: "num", month: curM(), sub: "seg", q: "", day: "", crmConv: "", crmView: "dm" };
 
   function toast(t) { var el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove("on"); }, 2200); }
 
@@ -742,9 +742,16 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   }
   // ---- CRM: por ahora solo Instagram; WhatsApp se suma después (vía Evolution)
   function vCrm() {
+    var pend = DB.ig_comments.filter(function (x) { return !x.replied; }).length;
+    var h = '<div class="sub" id="sub">' + [["dm", "Mensajes", DB.ig_conversations.filter(function (c) { return c.unread; }).length], ["com", "Comentarios", pend]].map(function (x) {
+      return '<button data-act="crm-view" data-id="' + x[0] + '" aria-selected="' + (UI.crmView === x[0]) + '">' + x[1] + (x[2] ? "<b>" + x[2] + "</b>" : "") + "</button>";
+    }).join("") + "</div>";
+    return h + (UI.crmView === "com" ? vCrmComments() : vCrmDm());
+  }
+  function vCrmDm() {
     var convs = DB.ig_conversations.slice().sort(function (a, b) { return (b.lastDate + b.lastTime) < (a.lastDate + a.lastTime) ? -1 : 1; });
     if (!UI.crmConv || !convs.some(function (c) { return c.id === UI.crmConv; })) UI.crmConv = convs.length ? convs[0].id : "";
-    var h = '<div class="sec"><h2>CRM <span class="sp muted" style="font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Instagram</span></h2>';
+    var h = '<div class="sec"><h2>Mensajes directos</h2>';
     if (!convs.length) {
       return h + '<div class="card empty">Todavía no llegó ningún mensaje de Instagram. En cuanto alguien te escriba, va a aparecer acá.</div></div>';
     }
@@ -756,6 +763,17 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       var msgs = DB.ig_messages.filter(function (x) { return x.convId === conv.id; }).sort(function (a, b) { return (a.date + a.time) < (b.date + b.time) ? -1 : 1; });
       h += '<div class="sec"><h2>@' + esc(conv.username) + '</h2><div class="card thread">' + (msgs.length ? msgs.map(function (x) { return '<div class="bub ' + (x.dir === "out" ? "out" : "in") + '"><p>' + esc(x.text) + '</p><small>' + esc(x.time) + "</small></div>"; }).join("") : '<div class="empty">Todavía no hay mensajes con esta persona.</div>') + '</div><div class="sendbar"><input id="crm-text" type="text" placeholder="Escribir un mensaje..." maxlength="1000"><button type="button" class="btn p" data-act="crm-send" data-id="' + conv.id + '">Enviar</button></div></div>';
     }
+    return h;
+  }
+  function vCrmComments() {
+    var l = DB.ig_comments.slice().sort(function (a, b) { return (b.date + b.time) < (a.date + a.time) ? -1 : 1; });
+    var h = '<div class="sec"><h2>Comentarios</h2>';
+    if (!l.length) return h + '<div class="card empty">Todavía no hay comentarios en tus posteos.</div></div>';
+    h += l.map(function (c) {
+      return '<div class="fu"><div class="row"><h4>@' + esc(c.username) + '</h4><span class="chip ' + (c.replied ? "" : "y") + '" style="margin-left:auto">' + (c.replied ? "Respondido" : "Sin responder") + '</span></div><p>' + esc(c.text) + "</p>" +
+        (c.replied ? "" : '<div class="acts"><input type="text" id="cm-' + c.id + '" placeholder="Responder en público..." maxlength="1000" style="flex:1;min-width:0;padding:10px 12px;border:1px solid var(--g1);border-radius:10px;background:var(--ink);color:var(--off)"><button class="btn p sm" data-act="crm-reply" data-id="' + c.id + '">Responder</button></div>') +
+        "</div>";
+    }).join("") + "</div>";
     return h;
   }
   function vFoot() {
@@ -1039,6 +1057,20 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     "t-confirm-precio": function (id) { var x = turOf(id); if (!x) return; delete x.sinConfirmar; save(); render(); toast("Precio confirmado"); },
     "pend-all": function (k) { UI.pendAll = UI.pendAll || {}; UI.pendAll[k] = !UI.pendAll[k]; render(); },
     calsync: function () { syncCal(true); },
+    "crm-view": function (v) { UI.crmView = v; render(); },
+    "crm-reply": function (id) {
+      var input = $("cm-" + id), text = input ? input.value.trim() : "";
+      if (!text) return;
+      var btn = document.querySelector('[data-act="crm-reply"][data-id="' + id + '"]'); if (btn) btn.disabled = true;
+      api("ig-comment-reply", { commentId: id, message: text }, "POST").then(function () {
+        var c = DB.ig_comments.filter(function (x) { return x.id === id; })[0];
+        if (c) c.replied = true;
+        save(); render(); toast("Respondido");
+      }).catch(function (e) {
+        if (btn) btn.disabled = false;
+        toast(e.message === "ig_not_configured" ? "Instagram todavía no está conectado" : "No se pudo responder");
+      });
+    },
     "crm-open": function (id) {
       UI.crmConv = id;
       var c = DB.ig_conversations.filter(function (x) { return x.id === id; })[0];

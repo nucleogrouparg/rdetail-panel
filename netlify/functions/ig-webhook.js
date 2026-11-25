@@ -3,7 +3,7 @@
 const crypto = require("crypto");
 const { settings, sheetRows, sheetApply, json } = require("./_lib");
 
-const COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages"];
+const COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages", "ig_comments"];
 const GRAPH = "https://graph.facebook.com/v21.0/";
 const pad = (n) => (n < 10 ? "0" + n : "" + n);
 function arDateTime(ms) {
@@ -63,6 +63,16 @@ exports.handler = async (event) => {
         conv = Object.assign({ id: psid, username }, conv, { lastText: text, lastDate: date, lastTime: time, unread: true });
         byConv[psid] = conv;
         ops.push({ c: "ig_conversations", id: psid, d: conv });
+      }
+      for (const ch of entry.changes || []) {
+        if (!ch || ch.field !== "comments" || !ch.value || !ch.value.id) continue;
+        const v = ch.value;
+        if (v.from && s.igId && v.from.id === s.igId) continue; // es una respuesta nuestra, no un comentario nuevo
+        const { date, time } = arDateTime(Date.now()); // Meta no manda timestamp propio en este evento
+        ops.push({
+          c: "ig_comments", id: v.id,
+          d: { mediaId: v.media ? v.media.id : "", fromId: v.from ? v.from.id : "", username: v.from ? v.from.username : "alguien", text: v.text || "", date, time, replied: false }
+        });
       }
     }
     if (ops.length) await sheetApply(s, COLS, ops, rows);
