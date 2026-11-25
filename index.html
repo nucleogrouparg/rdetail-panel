@@ -118,6 +118,23 @@ main{padding-block:22px}
 .cli h4{font-size:1.02rem;font-weight:800}
 .cli .tot{font-family:var(--display);font-size:1.6rem;letter-spacing:.03em;text-align:right}
 .cli p{font-size:.82rem;color:var(--g3)}
+.crmlist{display:flex;flex-direction:column;gap:8px}
+.crmrow{display:flex;align-items:center;gap:10px;text-align:left;padding:12px 14px;border:1px solid var(--g1);border-radius:12px;background:var(--ink);cursor:pointer;width:100%;color:var(--off)}
+.crmrow:hover{border-color:var(--g2)}
+.crmrow .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.crmrow b{font-size:.92rem;font-weight:800}
+.crmrow .tx span{font-size:.8rem;color:var(--g3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.crmrow em{font-style:normal;font-size:.68rem;color:var(--g3);flex-shrink:0}
+.crmrow.sel{border-color:var(--red);background:rgba(220,26,33,.12)}
+.crmrow.unread b::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-left:6px;vertical-align:middle}
+.thread{display:flex;flex-direction:column;gap:8px;max-height:440px;overflow-y:auto}
+.bub{max-width:78%;padding:9px 13px;border-radius:14px;font-size:.88rem}
+.bub p{margin:0;white-space:pre-wrap;word-break:break-word}
+.bub small{display:block;margin-top:3px;font-size:.64rem;opacity:.7}
+.bub.in{align-self:flex-start;background:var(--asphalt);border:1px solid var(--g1)}
+.bub.out{align-self:flex-end;background:var(--red);color:#fff}
+.sendbar{display:flex;gap:8px;margin-top:10px}
+.sendbar input{flex:1;min-width:0;padding:12px 14px;border:1px solid var(--g1);border-radius:12px;background:var(--ink);color:var(--off);font-size:.92rem}
 input[type=password],input[type=search],input[type=text],input[type=number],input[type=date],input[type=tel],input[type=month],select,textarea{width:100%;min-height:46px;padding:10px 12px;border-radius:10px;border:1px solid var(--g2);background:var(--ink);color:var(--off)}
 textarea{min-height:70px;resize:vertical}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-offset:1px}
@@ -271,12 +288,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
 
   // ---------- datos y sincronización ----------
   var API = "/.netlify/functions/";
-  var COLS = ["clients", "turnos", "ingresos", "gastos", "follow"];
+  var COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages"];
   var mem = {};
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
   function lsSet(k, v) { mem[k] = v; try { localStorage.setItem(k, v); } catch (e) {} }
   function lsDel(k) { delete mem[k]; try { localStorage.removeItem(k); } catch (e) {} }
-  function blank() { return { v: 1, demo: false, clients: [], turnos: [], ingresos: [], gastos: [], follow: [] }; }
+  function blank() { return { v: 1, demo: false, clients: [], turnos: [], ingresos: [], gastos: [], follow: [], ig_conversations: [], ig_messages: [] }; }
   var DEMO = /demo/.test(location.hash);
   var DB = blank(), SNAP = {}, QUEUE = [], TOKEN = lsGet("rdp_token") || "", STATUS = "ok", flushing = false, retry = null;
   try { var c0 = JSON.parse(lsGet("rdp_cache") || "null"); if (c0 && c0.ingresos) { DB = c0; DB.demo = false; } } catch (e) {}
@@ -397,7 +414,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       else $("lg-msg").textContent = x.r.status === 401 ? "Contraseña incorrecta." : x.r.status === 503 ? "Falta terminar la configuración del panel." : "No se pudo entrar. Probá de nuevo.";
     }).catch(function () { b.disabled = false; $("lg-msg").textContent = "Sin conexión. Probá de nuevo."; });
   }
-  var UI = { tab: "num", month: curM(), sub: "seg", q: "", day: "" };
+  var UI = { tab: "num", month: curM(), sub: "seg", q: "", day: "", crmConv: "" };
 
   function toast(t) { var el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove("on"); }, 2200); }
 
@@ -723,9 +740,23 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     l.forEach(function (x) { var f = { type: "reactivar" }, ing = x.s.ing[0]; h += '<div class="fu"><div class="row"><h4>' + esc(x.c.name) + '</h4><span class="chip r" style="margin-left:auto">' + daysBetween(x.s.last, t) + ' días sin venir</span></div><p>Último trabajo: ' + esc(ing.service) + " · " + dLong(ing.date) + " · total " + money(x.s.tot) + '</p><div class="acts"><a class="btn wa sm" target="_blank" rel="noopener" href="' + waLink(x.c.phone, fmsg(f, x.c, ing)) + '">WhatsApp</a><button class="btn sm" data-act="open-cli" data-id="' + x.c.id + '">Ver ficha</button></div></div>'; });
     return h + "</div>";
   }
-  // ---- CRM (en construcción: todavía no conectado a Instagram/WhatsApp)
+  // ---- CRM: por ahora solo Instagram; WhatsApp se suma después (vía Evolution)
   function vCrm() {
-    return '<div class="sec"><h2>CRM</h2><div class="card empty">Lo estamos armando: acá vas a ver los mensajes de Instagram y WhatsApp en un solo lugar, como un chat. Por ahora es solo el espacio reservado.</div></div>';
+    var convs = DB.ig_conversations.slice().sort(function (a, b) { return (b.lastDate + b.lastTime) < (a.lastDate + a.lastTime) ? -1 : 1; });
+    if (!UI.crmConv || !convs.some(function (c) { return c.id === UI.crmConv; })) UI.crmConv = convs.length ? convs[0].id : "";
+    var h = '<div class="sec"><h2>CRM <span class="sp muted" style="font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Instagram</span></h2>';
+    if (!convs.length) {
+      return h + '<div class="card empty">Todavía no llegó ningún mensaje de Instagram. En cuanto alguien te escriba, va a aparecer acá.</div></div>';
+    }
+    h += '<div class="card crmlist">' + convs.map(function (c) {
+      return '<button type="button" class="crmrow' + (c.id === UI.crmConv ? " sel" : "") + (c.unread ? " unread" : "") + '" data-act="crm-open" data-id="' + c.id + '"><span class="tx"><b>@' + esc(c.username) + '</b><span>' + esc(c.lastText || "") + '</span></span><em>' + esc(c.lastTime || "") + "</em></button>";
+    }).join("") + "</div></div>";
+    var conv = convs.filter(function (c) { return c.id === UI.crmConv; })[0];
+    if (conv) {
+      var msgs = DB.ig_messages.filter(function (x) { return x.convId === conv.id; }).sort(function (a, b) { return (a.date + a.time) < (b.date + b.time) ? -1 : 1; });
+      h += '<div class="sec"><h2>@' + esc(conv.username) + '</h2><div class="card thread">' + (msgs.length ? msgs.map(function (x) { return '<div class="bub ' + (x.dir === "out" ? "out" : "in") + '"><p>' + esc(x.text) + '</p><small>' + esc(x.time) + "</small></div>"; }).join("") : '<div class="empty">Todavía no hay mensajes con esta persona.</div>') + '</div><div class="sendbar"><input id="crm-text" type="text" placeholder="Escribir un mensaje..." maxlength="1000"><button type="button" class="btn p" data-act="crm-send" data-id="' + conv.id + '">Enviar</button></div></div>';
+    }
+    return h;
   }
   function vFoot() {
     return '<div class="foot"><h3 style="font-size:1.3rem">Tus datos</h3><p class="muted" style="margin-top:6px;max-width:62ch">Todo se guarda en la nube, así que podés abrir el panel desde el celular o la computadora y ves lo mismo. Si no hay internet, se guarda en el dispositivo y se sube solo cuando vuelve.</p><div class="acts"><button class="btn sm" data-act="calsync">Traer turnos de la web</button><button class="btn sm" data-act="csv">Exportar cobros y gastos (Excel)</button><button class="btn sm" data-act="exp">Descargar copia</button><button class="btn g sm" data-act="logout">Cerrar sesión</button></div></div>';
@@ -1008,6 +1039,27 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     "t-confirm-precio": function (id) { var x = turOf(id); if (!x) return; delete x.sinConfirmar; save(); render(); toast("Precio confirmado"); },
     "pend-all": function (k) { UI.pendAll = UI.pendAll || {}; UI.pendAll[k] = !UI.pendAll[k]; render(); },
     calsync: function () { syncCal(true); },
+    "crm-open": function (id) {
+      UI.crmConv = id;
+      var c = DB.ig_conversations.filter(function (x) { return x.id === id; })[0];
+      if (c && c.unread) { c.unread = false; save(); }
+      render();
+    },
+    "crm-send": function (id) {
+      var input = $("crm-text"), text = input ? input.value.trim() : "";
+      if (!text) return;
+      var btn = document.querySelector('[data-act="crm-send"][data-id="' + id + '"]'); if (btn) btn.disabled = true;
+      api("ig-send", { psid: id, text: text }, "POST").then(function (r) {
+        var now = new Date(), date = ymd(now), time = pad(now.getHours()) + ":" + pad(now.getMinutes());
+        DB.ig_messages.push({ id: r.mid || uid(), convId: id, dir: "out", text: text, date: date, time: time });
+        var c = DB.ig_conversations.filter(function (x) { return x.id === id; })[0];
+        if (c) { c.lastText = text; c.lastDate = date; c.lastTime = time; }
+        save(); render();
+      }).catch(function (e) {
+        if (btn) btn.disabled = false;
+        toast(e.message === "ig_not_configured" ? "Instagram todavía no está conectado" : "No se pudo enviar el mensaje");
+      });
+    },
     logout: function () { logout(false); },
     "exit-demo": function () { location.href = location.pathname; }
   };

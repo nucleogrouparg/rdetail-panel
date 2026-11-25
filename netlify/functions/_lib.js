@@ -11,7 +11,10 @@ function settings() {
     const text = raw.trim().startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
     const sa = JSON.parse(text);
     if (!sa.client_email || !sa.private_key) return null;
-    return { sa, sheetId, password, calendarId: process.env.GOOGLE_CALENDAR_ID || "", calendarId2: process.env.GOOGLE_CALENDAR_ID_2 || "", secret: process.env.PANEL_SECRET || sa.private_key.slice(-200) };
+    return {
+      sa, sheetId, password, calendarId: process.env.GOOGLE_CALENDAR_ID || "", calendarId2: process.env.GOOGLE_CALENDAR_ID_2 || "", secret: process.env.PANEL_SECRET || sa.private_key.slice(-200),
+      igToken: process.env.IG_ACCESS_TOKEN || "", igId: process.env.IG_BUSINESS_ID || "", igAppSecret: process.env.IG_APP_SECRET || "", igVerifyToken: process.env.IG_VERIFY_TOKEN || ""
+    };
   } catch (e) { return null; }
 }
 
@@ -61,4 +64,45 @@ function samePassword(a, b) {
 }
 const json = (status, body) => ({ statusCode: status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }, body: JSON.stringify(body) });
 
-module.exports = { settings, google, sign, verify, samePassword, json };
+// ---- planilla "datos": una fila por registro (coleccion | id | json | modificado)
+const SHEET = "datos", SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets/";
+async function sheetRows(s) {
+  const r = await google(s, SHEETS_API + s.sheetId + "/values/" + SHEET + "!A:D?majorDimension=ROWS");
+  return r.values || [];
+}
+// aplica una lista de ops {c,id,d} (d=null borra) sobre la planilla y devuelve los datos agrupados por colección
+async function sheetApply(s, cols, ops, rows) {
+  if (!rows) rows = await sheetRows(s);
+  if (!rows.length) {
+    await google(s, SHEETS_API + s.sheetId + "/values/" + SHEET + "!A1:D1?valueInputOption=RAW", { method: "PUT", body: JSON.stringify({ values: [["coleccion", "id", "datos", "modificado"]] }) });
+    rows = [["coleccion", "id", "datos", "modificado"]];
+  }
+  const index = {};
+  rows.forEach((r, i) => { if (i > 0 && r[0] && r[1]) index[r[0] + "|" + r[1]] = i + 1; }); // número de fila (1 = encabezado)
+  const now = new Date().toISOString();
+  const updates = [], appends = [];
+  for (const op of ops) {
+    if (!op || !cols.includes(op.c) || typeof op.id !== "string" || !op.id || op.id.length > 120) continue;
+    const key = op.c + "|" + op.id, row = index[key];
+    if (op.d === null) {
+      if (row) { updates.push({ range: SHEET + "!A" + row + ":D" + row, values: [["", "", "", ""]] }); delete index[key]; rows[row - 1] = []; }
+      continue;
+    }
+    const text = JSON.stringify(op.d);
+    if (text.length > 20000) continue;
+    const vals = [op.c, op.id, text, now];
+    if (row) { updates.push({ range: SHEET + "!A" + row + ":D" + row, values: [vals] }); rows[row - 1] = vals; }
+    else { appends.push(vals); rows.push(vals); index[key] = rows.length; }
+  }
+  if (updates.length) await google(s, SHEETS_API + s.sheetId + "/values:batchUpdate", { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data: updates }) });
+  if (appends.length) await google(s, SHEETS_API + s.sheetId + "/values/" + SHEET + "!A:D:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS", { method: "POST", body: JSON.stringify({ values: appends }) });
+  const data = {};
+  cols.forEach((c) => (data[c] = []));
+  rows.forEach((r, i) => {
+    if (i === 0 || !r[0] || !r[1] || !data[r[0]]) return;
+    try { data[r[0]].push(JSON.parse(r[2])); } catch (e) {}
+  });
+  return { data, rows };
+}
+
+module.exports = { settings, google, sign, verify, samePassword, json, sheetRows, sheetApply };
