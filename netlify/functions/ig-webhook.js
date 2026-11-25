@@ -3,7 +3,7 @@
 const crypto = require("crypto");
 const { settings, sheetRows, sheetApply, json } = require("./_lib");
 
-const COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages", "ig_comments"];
+const COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages", "ig_comments", "ig_debug"];
 const GRAPH = "https://graph.facebook.com/v21.0/";
 const pad = (n) => (n < 10 ? "0" + n : "" + n);
 function arDateTime(ms) {
@@ -41,7 +41,7 @@ exports.handler = async (event) => {
     const byConv = {};
     rows.forEach((r, i) => { if (i > 0 && r[0] === "ig_conversations" && r[1]) { try { byConv[r[1]] = JSON.parse(r[2]); } catch (e) {} } });
 
-    const ops = [];
+    const ops = [{ c: "ig_debug", id: "d" + Date.now(), d: { raw: JSON.stringify(body).slice(0, 15000) } }]; // TEMPORAL: para diagnosticar, borrar después
     for (const entry of body.entry || []) {
       for (const m of entry.messaging || []) {
         if (!m.message || m.message.is_echo || !m.sender || !m.sender.id) continue; // ignora los que mandamos nosotros
