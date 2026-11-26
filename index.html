@@ -264,17 +264,17 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   var WA_NUM = "5491135879376";
   var PAGOS = ["Efectivo","Transferencia","Mercado Pago","Tarjeta"];
   var PRECIOS_SEED = [
-    { name: "Preventa", tag: "", auto: { price: 312499, disc: 20 }, camioneta: { price: 362499, disc: 20 } },
-    { name: "Promo interior y lavado", tag: "", auto: { price: 212499, disc: 20 }, camioneta: { price: 249999, disc: 20 } },
-    { name: "Promo interior, motor y lavado", tag: "", auto: { price: 281250, disc: 20 }, camioneta: { price: 337499, disc: 20 } },
-    { name: "Limpieza de interior y lavado", tag: "PRINCIPAL", auto: { price: 199999, disc: 0 }, camioneta: { price: 230000, disc: 0 } },
-    { name: "Lavado premium", tag: "", auto: { price: 60000, disc: 0 }, camioneta: { price: 65000, disc: 0 } },
-    { name: "Abrillantado", tag: "", auto: { price: 180000, disc: 0 }, camioneta: { price: 220000, disc: 0 } },
-    { name: "Lavado de motor", tag: "", auto: { price: 70000, disc: 0 }, camioneta: { price: 70000, disc: 0 } },
-    { name: "Tratamiento acrílico", tag: "", auto: { price: 380000, disc: 0 }, camioneta: { price: 460000, disc: 0 } },
-    { name: "Tratamiento cerámico", tag: "", auto: { price: 460000, disc: 0 }, camioneta: { price: 550000, disc: 0 } },
-    { name: "Polarizado", tag: "", auto: { price: 150000, disc: 0 }, camioneta: { price: 150000, disc: 0 } },
-    { name: "Sacabollos", tag: "", consultar: true, auto: { price: 0, disc: 0 }, camioneta: { price: 0, disc: 0 } }
+    { webId: "preventa", name: "Preventa", tag: "", auto: { price: 312499, disc: 20 }, camioneta: { price: 362499, disc: 20 } },
+    { webId: "promo-interior", name: "Promo interior y lavado", tag: "", auto: { price: 212499, disc: 20 }, camioneta: { price: 249999, disc: 20 } },
+    { webId: "promo-motor", name: "Promo interior, motor y lavado", tag: "", auto: { price: 281250, disc: 20 }, camioneta: { price: 337499, disc: 20 } },
+    { webId: "limpieza", name: "Limpieza de interior y lavado", tag: "PRINCIPAL", auto: { price: 199999, disc: 0 }, camioneta: { price: 230000, disc: 0 } },
+    { webId: "premium", name: "Lavado premium", tag: "", auto: { price: 60000, disc: 0 }, camioneta: { price: 65000, disc: 0 } },
+    { webId: "abrillantado", name: "Abrillantado", tag: "", auto: { price: 180000, disc: 0 }, camioneta: { price: 220000, disc: 0 } },
+    { webId: "motor", name: "Lavado de motor", tag: "", auto: { price: 70000, disc: 0 }, camioneta: { price: 70000, disc: 0 } },
+    { webId: "acrilico", name: "Tratamiento acrílico", tag: "", auto: { price: 380000, disc: 0 }, camioneta: { price: 460000, disc: 0 } },
+    { webId: "ceramico", name: "Tratamiento cerámico", tag: "", auto: { price: 460000, disc: 0 }, camioneta: { price: 550000, disc: 0 } },
+    { webId: "polarizado", name: "Polarizado", tag: "", auto: { price: 150000, disc: 0 }, camioneta: { price: 150000, disc: 0 } },
+    { webId: "sacabollos", name: "Sacabollos", tag: "", consultar: true, auto: { price: 0, disc: 0 }, camioneta: { price: 0, disc: 0 } }
   ];
   var SUG = { fijo: ["Alquiler","Luz","Gas","Agua","Internet","Seguro","Contador","Monotributo / impuestos","Sistema y herramientas"], sueldo: ["Sueldo","Cargas sociales"], variable: ["Productos de limpieza","Insumos","Cerámico y acrílicos","Mantenimiento de equipos","Publicidad","Combustible","Reparaciones","Otros"] };
   var TNAME = { fijo: "Gastos fijos", sueldo: "Sueldos", variable: "Gastos variables" };
@@ -347,6 +347,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var n = blank(); COLS.forEach(function (c) { n[c] = data[c] || []; });
     DB = n; SNAP = snapOf(DB); persist();
     if (!DEMO && !DB.precios.length) { DB.precios = PRECIOS_SEED.map(function (p, i) { return Object.assign({ id: uid(), order: i }, p); }); save(); }
+    else if (!DEMO && DB.precios.some(function (p) { return !p.webId; })) { DB.precios.forEach(function (p) { if (!p.webId && PRECIOS_SEED[p.order]) p.webId = PRECIOS_SEED[p.order].webId; }); save(); } // migración: completa el id de la web en lo ya cargado
     if (!modalOpen() && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) render();
   }
   function flush() {
@@ -948,6 +949,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     openM('<h3>' + (p.id ? "Editar servicio" : "Nuevo servicio") + '<button class="icon" data-act="close">✕</button></h3>' +
       fld("Nombre del servicio", '<input type="text" id="p-name" value="' + esc(p.name) + '">') +
       fld("Etiqueta (opcional, ej: PRINCIPAL)", '<input type="text" id="p-tag" value="' + esc(p.tag || "") + '">') +
+      fld("ID para conectar con la web (opcional)", '<input type="text" id="p-webid" value="' + esc(p.webId || "") + '" placeholder="ej: preventa">') + '<p class="hint" style="margin-top:-6px">Tiene que coincidir exacto con el id de ese servicio en el código de la web, para que tome el precio. Si lo dejás vacío, este servicio no se publica ahí.</p>' +
       '<label class="chk"><input type="checkbox" id="p-consultar"' + (p.consultar ? " checked" : "") + '> Sin precio fijo (mostrar "Consultar")</label>' +
       '<div id="p-prices"' + (p.consultar ? " hidden" : "") + '><div class="f2">' + fld("Precio Auto", '<input type="number" id="p-auto-price" inputmode="numeric" min="0" step="1" value="' + (p.auto.price || "") + '">') + fld("Descuento Auto (%)", '<input type="number" id="p-auto-disc" inputmode="numeric" min="0" max="100" value="' + (p.auto.disc || "") + '">') + "</div>" +
       '<p class="hint" id="p-auto-final" style="margin-top:-6px"></p>' +
@@ -967,7 +969,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var name = gv("p-name").trim(); if (!name) return toast("Falta el nombre del servicio");
     var rec = id ? DB.precios.filter(function (x) { return x.id === id; })[0] : null;
     if (!rec) { rec = { id: uid(), order: DB.precios.length }; DB.precios.push(rec); }
-    rec.name = name; rec.tag = gv("p-tag").trim(); rec.consultar = $("p-consultar").checked;
+    rec.name = name; rec.tag = gv("p-tag").trim(); rec.webId = gv("p-webid").trim(); rec.consultar = $("p-consultar").checked;
     rec.auto = { price: Math.round(+gv("p-auto-price") || 0), disc: Math.min(100, Math.max(0, Math.round(+gv("p-auto-disc") || 0))) };
     rec.camioneta = { price: Math.round(+gv("p-cam-price") || 0), disc: Math.min(100, Math.max(0, Math.round(+gv("p-cam-disc") || 0))) };
     save(); closeM(); render(); toast("Servicio guardado");

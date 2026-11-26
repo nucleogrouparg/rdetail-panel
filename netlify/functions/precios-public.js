@@ -14,8 +14,9 @@ exports.handler = async () => {
     rows.forEach((r, i) => {
       if (i === 0 || r[0] !== "precios" || !r[1]) return;
       let p; try { p = JSON.parse(r[2]); } catch (e) { return; }
+      if (!p.webId) return; // sin id de la web: no se publica acá
       items.push({
-        id: p.id, order: p.order || 0, name: p.name, tag: p.tag || "", consultar: !!p.consultar,
+        id: p.webId, order: p.order || 0, name: p.name, tag: p.tag || "", consultar: !!p.consultar,
         auto: p.consultar ? null : { precio: precioFinal(p.auto || {}), precioLista: (p.auto || {}).price || 0, descuento: (p.auto || {}).disc || 0 },
         camioneta: p.consultar ? null : { precio: precioFinal(p.camioneta || {}), precioLista: (p.camioneta || {}).price || 0, descuento: (p.camioneta || {}).disc || 0 }
       });
