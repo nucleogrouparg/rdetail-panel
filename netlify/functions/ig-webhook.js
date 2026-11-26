@@ -6,8 +6,11 @@ const { settings, sheetRows, sheetApply, json } = require("./_lib");
 const COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages", "ig_comments", "ig_debug"];
 const GRAPH = "https://graph.facebook.com/v21.0/";
 const pad = (n) => (n < 10 ? "0" + n : "" + n);
-function arDateTime(ms) {
-  const ar = new Date((ms || Date.now()) - 3 * 3600000); // hora de Argentina
+
+function arDateTime(ts) {
+  let ms = Number(ts) || Date.now();
+  if (ms < 1e12) ms *= 1000; // viene en segundos, no en milisegundos
+  const ar = new Date(ms - 3 * 3600000); // hora de Argentina
   return { date: ar.getUTCFullYear() + "-" + pad(ar.getUTCMonth() + 1) + "-" + pad(ar.getUTCDate()), time: pad(ar.getUTCHours()) + ":" + pad(ar.getUTCMinutes()) };
 }
 
@@ -16,6 +19,20 @@ function validSignature(secret, body, header) {
   const expected = "sha256=" + crypto.createHmac("sha256", secret).update(body || "", "utf8").digest("hex");
   const a = Buffer.from(String(header || "")), b = Buffer.from(expected);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// junta los mensajes nuevos vengan en el formato que vengan: messaging[]/standby[] (Messenger clásico) o changes[] con field "messages" (Instagram nuevo)
+function collectMessages(entry) {
+  const out = [];
+  (entry.messaging || []).concat(entry.standby || []).forEach((m) => {
+    if (m.message && m.sender && m.sender.id) out.push({ psid: m.sender.id, message: m.message, timestamp: m.timestamp });
+  });
+  (entry.changes || []).forEach((ch) => {
+    if (ch && ch.field === "messages" && ch.value && ch.value.sender && ch.value.message) {
+      out.push({ psid: ch.value.sender.id, message: ch.value.message, timestamp: ch.value.timestamp });
+    }
+  });
+  return out;
 }
 
 exports.handler = async (event) => {
@@ -43,12 +60,11 @@ exports.handler = async (event) => {
 
     const ops = [{ c: "ig_debug", id: "d" + Date.now(), d: { raw: JSON.stringify(body).slice(0, 15000) } }]; // TEMPORAL: para diagnosticar, borrar después
     for (const entry of body.entry || []) {
-      for (const m of (entry.messaging || []).concat(entry.standby || [])) {
-        if (!m.message || m.message.is_echo || !m.sender || !m.sender.id) continue; // ignora los que mandamos nosotros
-        const psid = m.sender.id;
-        const text = m.message.text || (m.message.attachments ? "[adjunto]" : "");
-        const { date, time } = arDateTime(m.timestamp);
-        const mid = m.message.mid || ("ig_" + psid + "_" + (m.timestamp || Date.now()));
+      for (const { psid, message, timestamp } of collectMessages(entry)) {
+        if (message.is_echo) continue; // ignora los que mandamos nosotros
+        const text = message.text || (message.attachments ? "[adjunto]" : "");
+        const { date, time } = arDateTime(timestamp);
+        const mid = message.mid || ("ig_" + psid + "_" + (timestamp || Date.now()));
         ops.push({ c: "ig_messages", id: mid, d: { convId: psid, dir: "in", text, date, time } });
 
         let conv = byConv[psid];
