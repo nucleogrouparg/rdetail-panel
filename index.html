@@ -794,12 +794,20 @@ h1,h2,h3,.disp,.k .v,.it .am,.cli .tot{font-variant-numeric:tabular-nums}
   function payBlock(x) {
     if (x.estado === "canc") return "";
     var p = turPay(x), pct = p.tot > 0 ? Math.min(100, Math.round(p.paid / p.tot * 100)) : 0, st, cl = "";
-    if (x.date < today()) { st = "Pagado completo"; cl = "ok"; }
+    if (x.date < today() && !(p.tot > 0 && p.rest > 0)) { st = "Pagado completo"; cl = "ok"; }
     else if (!p.n) { st = needsSena(x.service) ? "Sin seña" : "Sin cobrar"; }
     else if (p.rest === 0) { st = "Pagado completo"; cl = "ok"; }
     else if (p.paid === p.sena) { st = "Seña pagada"; cl = "y"; }
     else { st = "Pago parcial"; cl = "y"; }
-    return '<div class="pay"><div class="row"><span class="chip ' + cl + '">' + st + '</span><span class="muted" style="margin-left:auto;font-size:.82rem">' + (p.tot > 0 ? "Pagado " + money(p.paid) + " de " + money(p.tot) : p.n ? "Pagado " + money(p.paid) : "Sin precio fijo") + "</span></div>" + (p.tot > 0 && p.n ? '<div class="prog" style="height:9px;margin:8px 0 0"><i class="' + (p.rest === 0 ? "ok" : "") + '" style="width:' + pct + '%"></i></div>' : "") + "</div>";
+    // desglose: cuánto es seña, cuánto se pagó de resto, y cuánto falta, todo junto adentro del turno
+    var resto = p.paid - p.sena, partes = [];
+    if (p.sena > 0) partes.push("Seña " + money(p.sena));
+    if (resto > 0) partes.push("Resto pagado " + money(resto));
+    if (p.tot > 0) partes.push(p.rest > 0 ? '<b style="color:var(--red-hi)">Falta ' + money(p.rest) + "</b>" : "Total " + money(p.tot));
+    else if (p.n) partes.push("Sin precio fijo cargado");
+    return '<div class="pay"><div class="row"><span class="chip ' + cl + '">' + st + '</span></div>' +
+      '<p class="muted" style="margin-top:6px;font-size:.85rem">' + (partes.length ? partes.join(" · ") : "Sin cobrar todavía") + "</p>" +
+      (p.tot > 0 && p.n ? '<div class="prog" style="height:9px;margin:8px 0 0"><i class="' + (p.rest === 0 ? "ok" : "") + '" style="width:' + pct + '%"></i></div>' : "") + "</div>";
   }
   function turCard(x) {
     var c = DB.clients.filter(function (y) { return y.id === x.cid; })[0], e = ESTADOS[x.estado] || ESTADOS.conf, p = turPay(x), open = x.estado !== "hecho" && x.estado !== "canc";
