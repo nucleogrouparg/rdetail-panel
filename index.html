@@ -397,7 +397,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
           var gc = DB.clients.filter(function (y) { return y.id === tu.cid; })[0];
           if (gc && gc.name === "Turno manual") {
             var nc = DB.clients.filter(function (x) { return x.name.toLowerCase() === e.name.toLowerCase(); })[0];
-            if (!nc) { nc = { id: uid(), name: e.name, phone: e.phone, vehicle: "", plate: "", notes: "" }; DB.clients.push(nc); }
+            if (!nc) { nc = { id: uid(), name: e.name, phone: e.phone, vehicle: "", plate: "", notes: "" }; DB.clients.push(nc); tu.clienteSinConfirmar = true; }
             tu.cid = nc.id; tu.service = e.service; tu.veh = e.veh; tu.time = e.time; tu.nota = "Del calendario de Google · revisar: " + e.title;
             if (e.estado === "hecho" && tu.estado === "conf") tu.estado = "hecho";
             changed++;
@@ -406,9 +406,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
         if (tu) { if (tu.estado === "pend" && e.estado === "conf") { tu.estado = "conf"; changed++; } if (tu.date !== e.date || (!e.allDay && tu.time !== e.time)) { tu.date = e.date; if (!e.allDay) tu.time = e.time; changed++; } if ((tu.total === undefined || tu.total === null || tu.total === "") && e.total) { tu.total = e.total; tu.sinConfirmar = true; changed++; } return; }
         var ya = calMatch(e); if (ya) { ya.eid = e.eid; skipped++; changed++; return; }
         var dg = String(e.phone).replace(/\D/g, ""), c = DB.clients.filter(function (x) { return (dg && String(x.phone).replace(/\D/g, "") === dg) || x.name.toLowerCase() === e.name.toLowerCase(); })[0];
+        var clienteNuevo = !c;
         if (!c) { c = { id: uid(), name: e.name, phone: e.phone, vehicle: "", plate: "", notes: e.email ? "Mail: " + e.email : "" }; DB.clients.push(c); }
         var nt = { id: uid(), eid: e.eid, date: e.date, time: e.time, cid: c.id, veh: e.veh, service: e.service, total: e.total || "", estado: e.estado, nota: e.manual ? "Del calendario de Google · revisar: " + e.title : "Reservó desde la web" };
         if (e.manual && e.total) nt.sinConfirmar = true;
+        // los eventos manuales (no la reserva estructurada de la web) pueden traer el servicio pegado al nombre:
+        // si no había ya un cliente con ese nombre o teléfono, no asumir que es uno nuevo sin que alguien lo confirme.
+        if (e.manual && clienteNuevo) nt.clienteSinConfirmar = true;
         DB.turnos.push(nt); added++;
       });
       DB.turnos.forEach(function (x) { if (x.eid && !seen[x.eid] && x.date >= r.from && x.date >= t && (x.estado === "pend" || x.estado === "conf")) { x.estado = "canc"; x.nota = (x.nota ? x.nota + " · " : "") + "Se liberó o se borró del calendario"; changed++; } });
@@ -723,6 +727,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var needSena = open && needsSena(x.service) && p.sena === 0, charge = x.estado === "hecho" && x.date >= today() && (p.rest === null ? p.n === 0 : p.rest > 0);
     return '<div class="fu"><div class="row"><h4>' + dLong(x.date) + " · " + esc(x.time) + ' hs</h4><span class="chip ' + e[1] + '" style="margin-left:auto">' + e[0] + "</span></div><p><b style=\"color:var(--off)\">" + esc(c ? c.name : "Cliente") + "</b> · " + esc(x.service) + " · " + (x.veh === "camioneta" ? "Camioneta" : "Auto") + (x.nota ? " · " + esc(x.nota) : "") + "</p>" + payBlock(x) +
       (x.sinConfirmar ? '<div class="row" style="margin-top:8px"><span class="chip y">⚠ Precio sin confirmar: ' + money(turTotal(x)) + '</span><button class="btn sm" data-act="t-confirm-precio" data-id="' + x.id + '">Confirmar</button></div>' : "") +
+      (x.clienteSinConfirmar ? '<div class="row" style="margin-top:8px"><span class="chip y">⚠ Cliente sin confirmar: ' + esc(c ? c.name : "Cliente") + '</span><button class="btn sm" data-act="t-confirm-cliente" data-id="' + x.id + '">Confirmar</button><button class="btn sm" data-act="t-edit" data-id="' + x.id + '">Es otro cliente</button></div>' : "") +
       '<div class="acts">' +
       (needSena ? '<button class="btn sm" data-act="t-sena" data-id="' + x.id + '">Cobrar seña</button>' : "") +
       (open ? '<button class="btn p sm" data-act="t-hecho" data-id="' + x.id + '">Realizado → cobrar</button><button class="btn g sm" data-act="t-canc" data-id="' + x.id + '">Cancelar</button>' : "") +
@@ -1025,7 +1030,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var c = ensureClient(name, gv("t-phone").trim()), rec = id ? DB.turnos.filter(function (x) { return x.id === id; })[0] : null;
     if (!rec) { rec = { id: uid() }; DB.turnos.push(rec); }
     rec.date = date; rec.time = gv("t-time"); rec.cid = c.id; rec.veh = gv("t-veh"); rec.service = gv("t-svc"); rec.estado = gv("t-est"); rec.nota = gv("t-nota"); rec.total = gv("t-total") === "" ? "" : Math.round(+gv("t-total") || 0);
-    delete rec.sinConfirmar;
+    delete rec.sinConfirmar; delete rec.clienteSinConfirmar;
     save(); closeM(); if (UI.sub !== "cal") UI.sub = "tur"; else UI.day = date; if (UI.sub === "cal") UI.month = date.slice(0, 7); render(); toast("Turno guardado");
   }
   function saveCli(id) {
@@ -1132,6 +1137,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     },
     "t-cobrado": function (id) { var x = turOf(id); if (!x) return; x.cobrado = true; x.nota = (x.nota ? x.nota + " · " : "") + "Marcado como cobrado"; save(); render(); toast("Sacado de la lista"); },
     "t-confirm-precio": function (id) { var x = turOf(id); if (!x) return; delete x.sinConfirmar; save(); render(); toast("Precio confirmado"); },
+    "t-confirm-cliente": function (id) { var x = turOf(id); if (!x) return; delete x.clienteSinConfirmar; save(); render(); toast("Cliente confirmado"); },
     "pend-all": function (k) { UI.pendAll = UI.pendAll || {}; UI.pendAll[k] = !UI.pendAll[k]; render(); },
     calsync: function () { syncCal(true); },
     "crm-view": function (v) { UI.crmView = v; render(); },
