@@ -949,9 +949,19 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       fld("Nombre del servicio", '<input type="text" id="p-name" value="' + esc(p.name) + '">') +
       fld("Etiqueta (opcional, ej: PRINCIPAL)", '<input type="text" id="p-tag" value="' + esc(p.tag || "") + '">') +
       '<label class="chk"><input type="checkbox" id="p-consultar"' + (p.consultar ? " checked" : "") + '> Sin precio fijo (mostrar "Consultar")</label>' +
-      '<div id="p-prices"' + (p.consultar ? " hidden" : "") + '><div class="f2">' + fld("Precio Auto", '<input type="number" id="p-auto-price" inputmode="numeric" min="0" step="1000" value="' + (p.auto.price || "") + '">') + fld("Descuento Auto (%)", '<input type="number" id="p-auto-disc" inputmode="numeric" min="0" max="100" value="' + (p.auto.disc || "") + '">') + "</div>" +
-      '<div class="f2">' + fld("Precio Camioneta", '<input type="number" id="p-cam-price" inputmode="numeric" min="0" step="1000" value="' + (p.camioneta.price || "") + '">') + fld("Descuento Camioneta (%)", '<input type="number" id="p-cam-disc" inputmode="numeric" min="0" max="100" value="' + (p.camioneta.disc || "") + '">') + "</div></div>" +
+      '<div id="p-prices"' + (p.consultar ? " hidden" : "") + '><div class="f2">' + fld("Precio Auto", '<input type="number" id="p-auto-price" inputmode="numeric" min="0" step="1" value="' + (p.auto.price || "") + '">') + fld("Descuento Auto (%)", '<input type="number" id="p-auto-disc" inputmode="numeric" min="0" max="100" value="' + (p.auto.disc || "") + '">') + "</div>" +
+      '<p class="hint" id="p-auto-final" style="margin-top:-6px"></p>' +
+      '<div class="f2">' + fld("Precio Camioneta", '<input type="number" id="p-cam-price" inputmode="numeric" min="0" step="1" value="' + (p.camioneta.price || "") + '">') + fld("Descuento Camioneta (%)", '<input type="number" id="p-cam-disc" inputmode="numeric" min="0" max="100" value="' + (p.camioneta.disc || "") + '">') + "</div>" +
+      '<p class="hint" id="p-cam-final" style="margin-top:-6px"></p></div>' +
       '<div class="mfoot">' + (p.id ? '<button class="btn g" data-act="del-precio" data-id="' + p.id + '">Borrar</button>' : "") + '<button class="btn" data-act="close">Cancelar</button><button class="btn p" data-act="save-precio" data-id="' + (p.id || "") + '">Guardar</button></div>');
+    precioFormUI();
+  }
+  function precioFormUI() {
+    var ap = $("p-auto-price"); if (!ap) return;
+    var af = Math.round((+ap.value || 0) * (1 - (+gv("p-auto-disc") || 0) / 100));
+    var cf = Math.round((+gv("p-cam-price") || 0) * (1 - (+gv("p-cam-disc") || 0) / 100));
+    $("p-auto-final").textContent = "Precio final: " + money(af);
+    $("p-cam-final").textContent = "Precio final: " + money(cf);
   }
   function savePrecio(id) {
     var name = gv("p-name").trim(); if (!name) return toast("Falta el nombre del servicio");
@@ -1167,6 +1177,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   document.addEventListener("input", function (e) {
     if (e.target.id === "f-amt" || e.target.id === "f-fx") conv("f");
     if (e.target.id === "g-amt" || e.target.id === "g-fx") conv("g");
+    if (["p-auto-price", "p-auto-disc", "p-cam-price", "p-cam-disc"].indexOf(e.target.id) >= 0) precioFormUI();
     if (e.target.id === "pq") { UI.pq = e.target.value; var pp = e.target.selectionStart; render(); var pe = $("pq"); if (pe) { pe.focus(); pe.setSelectionRange(pp, pp); } }
     if (e.target.id === "q") { UI.q = e.target.value; var pos = e.target.selectionStart; render(); var q = $("q"); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }
   });
