@@ -865,7 +865,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var l = q ? all.filter(function (x) { return cn(x).toLowerCase() === q || x.id === selId; }) : all;
     if (q && !l.length) l = all;
     l = l.sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 40);
-    return '<option value="">Sin turno vinculado</option><option value="__new">➕ Crear un turno nuevo para este cobro</option>' + l.map(function (x) { var p = turPay(x), st = p.n ? (p.rest === 0 ? " · pagado" : p.rest > 0 ? " · resta " + money(p.rest) : "") : ""; return '<option value="' + x.id + '"' + (x.id === selId ? " selected" : "") + ">" + esc(dLong(x.date) + " · " + cn(x) + " · " + x.service + st) + "</option>"; }).join("");
+    return '<option value="">Sin turno vinculado</option><option value="__new">➕ Crear un turno nuevo para este cobro</option>' + l.map(function (x) { var p = turPay(x), st = p.n ? (p.rest === 0 ? " · pagado" : p.rest > 0 ? " · resta " + money(p.rest) : "") : "", pr = p.tot > 0 ? " · " + money(p.tot) : ""; return '<option value="' + x.id + '"' + (x.id === selId ? " selected" : "") + ">" + esc(dLong(x.date) + " · " + cn(x) + " · " + x.service + pr + st) + "</option>"; }).join("");
   }
   function linkAmt(force) {
     var t = turOf(gv("f-tid")), info = $("f-link"), a = $("f-amt"), tipo = gv("f-tipo");
