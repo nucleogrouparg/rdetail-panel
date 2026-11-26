@@ -844,6 +844,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     editIng = i.id || "";
     openM('<h3>' + (i.id ? "Editar cobro" : "Nuevo cobro") + '<button class="icon" data-act="close">✕</button></h3>' + cliList() +
       fld("Fecha", '<input type="date" id="f-date" value="' + i.date + '">') +
+      fld("Vincular a turno (opcional)", '<select id="f-tid">' + turOpts(i.tid || "", i.name || (c ? c.name : "")) + '</select>') +
+      '<p class="hint">Si el cobro es de una seña o un pago de un turno ya cargado, vinculalo acá para que se sumen juntos.</p>' +
+      '<div id="f-newt" hidden>' + '<div class="f2">' + fld("Fecha del turno", '<input type="date" id="nt-date" value="' + i.date + '">') + fld("Hora", '<input type="time" id="nt-time" value="09:00">') + '</div>' + fld("Precio del trabajo (opcional)", '<input type="number" id="nt-total" inputmode="numeric" min="0" step="1000" placeholder="Vacío = precio de lista">') + '</div>' +
       '<div class="f2">' + fld("Nombre", '<input type="text" id="f-name" list="cl" placeholder="Nombre y apellido" value="' + esc(c ? c.name : (i.name || "")) + '" autocomplete="off">') + fld("Teléfono" + req, '<input type="tel" id="f-phone" inputmode="tel" placeholder="11 5555-5555" value="' + esc(c ? c.phone : (i.phone || "")) + '">') + "</div>" +
       fld("Servicio" + req, sel("f-svc", [["", "Elegí el servicio"]].concat(svcOpts()), i.service || "")) +
       '<div class="f2">' + fld("Tipo de cobro" + req, sel("f-tipo", [["", "Elegí el tipo"], ["total", "Pago total"], ["sena", "Seña (adelanto)"], ["saldo", "Saldo (resto)"]], i.tipo || (i.id ? "total" : ""))) + fld("Monto cobrado" + req, '<input type="number" id="f-amt" inputmode="decimal" min="0" step="any" value="' + (i.amount || "") + '" placeholder="0">') + "</div>" +
@@ -852,7 +855,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       '<div id="f-fxw"' + (usd ? "" : " hidden") + ">" + fld("Cotización del dólar (pesos por cada US$ 1)", '<input type="number" id="f-fx" inputmode="decimal" min="0" step="any" value="' + (i.fx || lastFx() || "") + '" placeholder="Ej: 1450">') + '<p class="hint" id="f-conv"></p></div>' +
       fld("Medio de pago", sel("f-pago", PAGOS, i.pago)) +
       '<p class="hint" id="f-hint"></p><p class="hint" id="f-link"></p>' +
-      '<input type="hidden" id="f-sid" value="' + esc(i.sid || "") + '"><input type="hidden" id="f-veh" value="' + esc(i.veh || "auto") + '"><input type="hidden" id="f-tid" value="' + esc(i.tid || "") + '"><input type="hidden" id="f-nota" value="' + esc(i.nota || "") + '"><input type="hidden" id="f-done" value="' + (i.done ? "1" : "") + '">' +
+      '<input type="hidden" id="f-sid" value="' + esc(i.sid || "") + '"><input type="hidden" id="f-veh" value="' + esc(i.veh || "auto") + '"><input type="hidden" id="f-nota" value="' + esc(i.nota || "") + '"><input type="hidden" id="f-done" value="' + (i.done ? "1" : "") + '">' +
       '<div class="mfoot"><button class="btn" data-act="close">Cancelar</button><button class="btn p" data-act="save-ing" data-id="' + (i.id || "") + '">Guardar</button></div>');
     autoAmt(!i.amount); conv("f");
   }
@@ -1185,6 +1188,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   });
   document.addEventListener("change", function (e) {
     if (e.target.id === "f-svc" || e.target.id === "f-veh") autoAmt(true);
+    if (e.target.id === "f-tid") pickTurno();
     if (e.target.id === "f-tipo") { var tw = $("f-totw"); if (tw) tw.hidden = e.target.value !== "sena"; autoAmt(true); }
     if (e.target.id === "t-svc" || e.target.id === "t-veh") tpl();
     if (e.target.id === "p-consultar") { var pp2 = $("p-prices"); if (pp2) pp2.hidden = e.target.checked; }
