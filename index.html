@@ -237,6 +237,7 @@ h1,h2,h3,.disp,.k .v,.it .am,.cli .tot{font-variant-numeric:tabular-nums}
 .xls th.w-sm,.xls td:has(select[data-edit="ing-veh"]),.xls td:has(select[data-edit="ing-pago"]),.xls td:has(select[data-edit="ing-tipo"]){width:1%;white-space:nowrap;min-width:140px}
 .xls td.xcli{position:relative;padding-bottom:0}
 .xls td.xcli .xsub{font-size:.68rem;color:var(--g3);padding:0 10px 6px;margin-top:-4px}
+.xls td.xcli .xsub.xlink{color:var(--ok);font-weight:700}
 .xls td.ro{padding:8px 10px;color:var(--g3);font-size:.8rem}
 .xls td.xact{padding:4px;display:flex;gap:2px;justify-content:center;border-right:0}
 .xls .xact button{border:0;background:none;color:var(--g3);width:30px;height:32px;border-radius:6px;flex-shrink:0}
@@ -649,7 +650,7 @@ h1,h2,h3,.disp,.k .v,.it .am,.cli .tot{font-variant-numeric:tabular-nums}
       if (t) {
         var p = turPay(t, DB.ingresos);
         var sena = sum(DB.ingresos.filter(function (x) { return x.tid === t.id && x.tipo === "sena"; }), ars);
-        return { sena: sena, rest: p.rest, trackable: true, act: "t-cobrado", id: t.id };
+        return { sena: sena, rest: p.rest, trackable: true, act: "t-cobrado", id: t.id, turno: t };
       }
     }
     if (i.tipo === "sena" && !i.tid) {
@@ -674,7 +675,7 @@ h1,h2,h3,.disp,.k .v,.it .am,.cli .tot{font-variant-numeric:tabular-nums}
       var chkCell = '<td class="xchk"><button class="chk-btn ' + (!b.trackable ? "na" : b.rest === 0 ? "on" : "off") + '"' + (b.trackable ? ' data-act="' + b.act + '" data-id="' + b.id + '"' : " disabled") + ' title="' + (!b.trackable ? "No aplica" : b.rest === 0 ? "Ya está todo cobrado" : "Marcar como cobrado del todo") + '">✓</button></td>';
       return '<tr class="' + rowCls.trim() + '">' +
         '<td><input type="date" value="' + i.date + '" data-edit="ing-date" data-id="' + i.id + '"></td>' +
-        '<td class="xcli"><input type="text" value="' + esc(c ? c.name : "") + '" placeholder="Sin especificar" data-edit="ing-cliente" data-id="' + i.id + '">' + (c && c.phone ? '<div class="xsub">' + esc(c.phone) + '</div>' : "") + '</td>' +
+        '<td class="xcli"><input type="text" value="' + esc(c ? c.name : "") + '" placeholder="Sin especificar" data-edit="ing-cliente" data-id="' + i.id + '">' + (c && c.phone ? '<div class="xsub">' + esc(c.phone) + '</div>' : "") + (b.turno ? '<div class="xsub xlink" title="Vinculado al turno del ' + dLong(b.turno.date) + ' · ' + esc(b.turno.service) + '">🔗 turno ' + dShort(b.turno.date) + '</div>' : "") + '</td>' +
         '<td><select data-edit="ing-service" data-id="' + i.id + '">' + (function () { var opts = svcOpts(); if (i.service && opts.indexOf(i.service) < 0) opts = [i.service].concat(opts); return opts.map(function (s) { return '<option value="' + esc(s) + '"' + (s === i.service ? " selected" : "") + '>' + esc(s) + '</option>'; }).join(""); })() + '</select></td>' +
         '<td><select data-edit="ing-veh" data-id="' + i.id + '"><option value="auto"' + (i.veh !== "camioneta" ? " selected" : "") + '>Auto</option><option value="camioneta"' + (i.veh === "camioneta" ? " selected" : "") + '>Camioneta</option></select></td>' +
         '<td><select data-edit="ing-pago" data-id="' + i.id + '">' + (i.pago ? "" : '<option value="" selected>Sin especificar</option>') + PAGOS.map(function (p) { return '<option value="' + esc(p) + '"' + (p === i.pago ? " selected" : "") + '>' + esc(p) + '</option>'; }).join("") + '</select></td>' +
