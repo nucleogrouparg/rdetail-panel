@@ -1008,7 +1008,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       else if (done || (turPay(tt).rest === 0 && turPay(tt).tot > 0 && tt.date <= today())) tt.estado = "hecho";
     }
     if (tipo === "sena" && +gv("f-tot") > 0) rec.total = Math.round(+gv("f-tot")); else delete rec.total;
-    var sid = gv("f-sid"); if (sid) { var sr = DB.ingresos.filter(function (x) { return x.id === sid; })[0]; if (sr) sr.full = true; } // la seña pasa a cobrada completa
+    var sid = gv("f-sid"); if (sid) { var sr = DB.ingresos.filter(function (x) { return x.id === sid; })[0]; if (sr) { sr.full = true; if (tid && !sr.tid) sr.tid = tid; } } // la seña pasa a cobrada completa y se une al mismo turno
     save(); closeM(); UI.month = date.slice(0, 7); render(); toast("Cobro guardado");
   }
   function saveGas(id) {
