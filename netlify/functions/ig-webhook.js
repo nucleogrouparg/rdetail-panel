@@ -43,7 +43,7 @@ exports.handler = async (event) => {
 
     const ops = [{ c: "ig_debug", id: "d" + Date.now(), d: { raw: JSON.stringify(body).slice(0, 15000) } }]; // TEMPORAL: para diagnosticar, borrar después
     for (const entry of body.entry || []) {
-      for (const m of entry.messaging || []) {
+      for (const m of (entry.messaging || []).concat(entry.standby || [])) {
         if (!m.message || m.message.is_echo || !m.sender || !m.sender.id) continue; // ignora los que mandamos nosotros
         const psid = m.sender.id;
         const text = m.message.text || (m.message.attachments ? "[adjunto]" : "");
