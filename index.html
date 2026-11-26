@@ -200,6 +200,59 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
 .toast.on{opacity:1}
 @media(max-width:520px){.it{grid-template-columns:46px 1fr auto}.it .am{grid-column:3;grid-row:1;font-size:1.3rem}.it .ac{grid-column:3;grid-row:2;justify-self:end;margin-top:-6px}.it .ac .icon{width:30px;height:28px}.kpis{gap:10px}.card{padding:15px}.brand small{display:none}.msel span{min-width:96px}.tabs{flex-wrap:wrap}.tabs button{flex:1 1 calc(33.333% - 4px);font-size:.95rem;padding:10px 4px;letter-spacing:.05em}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ====== Vista densa: ancho completo, menos aire entre secciones ====== */
+:root{--gutter:clamp(12px,3vw,24px)}
+.wrap{max-width:1800px}
+main{padding-block:12px}
+.card{padding:10px;border-radius:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:8px}
+.k .v{font-size:clamp(1.9rem,6vw,2.5rem);margin-top:2px}
+.k small{font-size:.64rem}
+.sec{margin-bottom:14px}
+.sec>h2{font-size:1.1rem;margin-bottom:6px}
+.sec>h2::before{width:16px;height:3px}
+.it{padding:9px 0}
+.it .am{font-size:1.15rem}
+.grp{margin-top:10px}
+.cli,.fu{padding:12px;border-radius:12px}
+.tabs button{padding:9px 8px;font-size:.95rem}
+h1,h2,h3,.disp,.k .v,.it .am,.cli .tot{font-variant-numeric:tabular-nums}
+
+/* ====== Tablas estilo planilla para Ingresos/Gastos ====== */
+.xlswrap{overflow-x:auto;border-radius:16px}
+.xls{width:100%;border-collapse:collapse;font-size:.86rem}
+.xls th{text-align:left;font-family:var(--display);font-weight:400;letter-spacing:.08em;text-transform:uppercase;font-size:.68rem;color:var(--g3);padding:9px 10px;border-bottom:2px solid var(--g1);white-space:nowrap;position:sticky;top:0;background:var(--card)}
+.xls td{padding:0;border-bottom:1px solid var(--g1);border-right:1px solid var(--g1)}
+.xls td:last-child{border-right:0}
+.xls tbody tr:hover td{background:rgba(255,255,255,.035)}
+.xls input,.xls select{width:100%;height:100%;min-height:40px;border:1px solid transparent;border-radius:0;background:transparent;padding:8px 10px;font-size:.84rem;color:var(--off);display:block}
+.xls input:hover,.xls select:hover{background:rgba(255,255,255,.04)}
+.xls input:focus,.xls select:focus{outline:2px solid var(--red);outline-offset:-2px;background:var(--card);position:relative;z-index:1}
+.xls td.num input{text-align:right;font-size:.84rem;letter-spacing:0}
+.xls th.w-dt,.xls td:has(input[type="date"]){width:1%;white-space:nowrap}
+.xls th.w-num,.xls td.num,.xls td.ro{width:1%;white-space:nowrap;min-width:90px}
+.xls th.w-chk,.xls td.xchk{width:1%;white-space:nowrap;min-width:44px}
+.xls th.w-act,.xls td.xact{width:1%;white-space:nowrap;min-width:72px}
+.xls th.w-sm,.xls td:has(select[data-edit="ing-veh"]),.xls td:has(select[data-edit="ing-pago"]),.xls td:has(select[data-edit="ing-tipo"]){width:1%;white-space:nowrap;min-width:140px}
+.xls td.xcli{position:relative;padding-bottom:0}
+.xls td.xcli .xsub{font-size:.68rem;color:var(--g3);padding:0 10px 6px;margin-top:-4px}
+.xls td.ro{padding:8px 10px;color:var(--g3);font-size:.8rem}
+.xls td.xact{padding:4px;display:flex;gap:2px;justify-content:center;border-right:0}
+.xls .xact button{border:0;background:none;color:var(--g3);width:30px;height:32px;border-radius:6px;flex-shrink:0}
+.xls .xact button:hover{color:var(--red-hi);background:rgba(220,26,33,.1)}
+.xls tbody tr.ok td{background:rgba(62,207,142,.22);border-bottom-color:rgba(62,207,142,.35)}
+.xls tbody tr.ok:hover td{background:rgba(62,207,142,.3)}
+.xls tbody tr.ok td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
+.xls tbody tr.due td{background:rgba(220,26,33,.22);border-bottom-color:rgba(220,26,33,.35)}
+.xls tbody tr.due:hover td{background:rgba(220,26,33,.3)}
+.xls tbody tr.due td:first-child{box-shadow:inset 3px 0 0 var(--red-hi)}
+.xls td.xchk{text-align:center;padding:4px}
+.chk-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--g2);background:none;color:var(--g3);font-weight:800}
+.chk-btn.off{border-color:rgba(220,26,33,.6);color:var(--red-hi)}
+.chk-btn.on{border-color:rgba(62,207,142,.7);background:rgba(62,207,142,.18);color:var(--ok)}
+.chk-btn.na{opacity:.25;cursor:default}
+.chk-btn.off:hover{background:rgba(220,26,33,.12)}
 </style>
 </head>
 <body>
@@ -568,70 +621,86 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       kpi("Resultado", '<span class="' + (t.R < 0 ? "neg" : "") + '">' + money(t.R) + "</span>", t.R >= 0 ? "Ganancia del mes" : "Pérdida del mes", "red") +
       kpi("Margen", Math.round(t.margin * 100) + "%", "Sobre lo que facturaste") +
       "</div></div>";
-    h += vPend();
     // cobertura
     h += '<div class="sec"><div class="card"><div class="row"><h3 style="font-size:1.4rem">Cubrís tus costos fijos</h3><span class="muted" style="margin-left:auto">' + covP + '%</span></div><div class="prog"><i class="' + (cov >= 1 ? "ok" : "") + '" style="width:' + covP + '%"></i></div><p class="muted">' +
       (fixed ? (cov >= 1 ? "Con " + money(fixed) + " de gastos fijos y sueldos ya cubiertos, lo que entra de acá en adelante es ganancia: <b style=\"color:var(--ok)\">" + money(t.I - fixed - t.by.variable) + "</b> después de variables." : "Gastos fijos y sueldos del mes: " + money(fixed) + ". Te faltan <b style=\"color:var(--red-hi)\">" + money(fixed - t.I) + "</b> de ingresos para cubrirlos.") : "Cargá tus gastos fijos y sueldos para ver desde qué monto empezás a ganar.") + "</p></div></div>";
     // distribución de gastos
     var segs = ["fijo", "sueldo", "variable"].map(function (k) { return t.G ? '<i style="width:' + (t.by[k] / t.G * 100) + "%;background:" + TCOL[k] + '"></i>' : ""; }).join("");
-    h += '<div class="grid two"><div class="sec"><h2>Ingresos <span class="sp"><button class="btn p sm" data-act="add-ing">+ Cobro</button></span></h2><div class="card">' +
-      (t.ing.length ? '<div class="list">' + t.ing.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).map(rowIng).join("") + "</div>" : '<div class="empty">Todavía no cargaste cobros este mes.</div>') + "</div></div>";
-    h += '<div class="sec"><h2>Gastos <span class="sp"><button class="btn p sm" data-act="add-gas">+ Gasto</button></span></h2><div class="card">' +
-      '<div class="seg">' + segs + '</div><div class="leg">' + ["fijo", "sueldo", "variable"].map(function (k) { return "<span><b style=\"background:" + TCOL[k] + '"></b>' + TNAME[k] + " " + money(t.by[k]) + "</span>"; }).join("") + "</div>";
-    ["fijo", "sueldo", "variable"].forEach(function (k) {
-      var l = t.ex.filter(function (e) { return e.g.type === k; }).sort(function (a, b) { return a.g.date < b.g.date ? 1 : -1; });
-      h += '<div class="grp"><h3>' + TNAME[k] + " <b>" + money(t.by[k]) + '</b></h3>' + (l.length ? '<div class="list">' + l.map(rowGas).join("") + "</div>" : '<div class="empty">Sin cargar</div>') + "</div>";
-    });
+    h += '<div><div class="sec"><h2>Ingresos <span class="sp"><button class="btn sm" data-act="toggle-ing">' + (UI.openIng ? "▴ Ocultar" : "▾ Ver detalle") + '</button> <button class="btn p sm" data-act="add-ing">+ Cobro</button></span></h2><div class="card" style="padding:0">' +
+      (UI.openIng
+        ? (t.ing.length ? tablaIng(t.ing.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; })) : '<div class="empty">Todavía no cargaste cobros este mes.</div>')
+        : '<div class="empty" style="cursor:pointer;text-align:left;padding:14px 16px" data-act="toggle-ing">' + t.ing.length + (t.ing.length === 1 ? " cobro cargado este mes" : " cobros cargados este mes") + ' · tocá para ver el detalle</div>') + "</div></div>";
+    h += '<div class="sec"><h2>Gastos <span class="sp"><button class="btn sm" data-act="toggle-gas">' + (UI.openGas ? "▴ Ocultar" : "▾ Ver detalle") + '</button> <button class="btn p sm" data-act="add-gas">+ Gasto</button></span></h2><div class="card">';
+    if (UI.openGas) {
+      h += '<div class="seg">' + segs + '</div><div class="leg">' + ["fijo", "sueldo", "variable"].map(function (k) { return "<span><b style=\"background:" + TCOL[k] + '"></b>' + TNAME[k] + " " + money(t.by[k]) + "</span>"; }).join("") + "</div>";
+      ["fijo", "sueldo", "variable"].forEach(function (k) {
+        var l = t.ex.filter(function (e) { return e.g.type === k; }).sort(function (a, b) { return a.g.date < b.g.date ? 1 : -1; });
+        h += '<div class="grp"><h3>' + TNAME[k] + " <b>" + money(t.by[k]) + '</b></h3>' + (l.length ? tablaGas(l) : '<div class="empty">Sin cargar</div>') + "</div>";
+      });
+    } else {
+      h += '<div class="empty" style="cursor:pointer;text-align:left;padding:14px 16px" data-act="toggle-gas">' + money(t.G) + ' gastados este mes · tocá para ver el detalle</div>';
+    }
     return h + "</div></div></div>";
   }
-  function vPend() {
-    var rows = [], miss = [], t0 = today();
-    var cl = function (id) { return DB.clients.filter(function (y) { return y.id === id; })[0]; };
-    var ago = function (d) { return Math.round((new Date(t0 + "T12:00:00") - new Date(d + "T12:00:00")) / 864e5); };
-    // trabajos con cobros cargados y saldo pendiente
-    DB.turnos.forEach(function (x) {
-      if (x.estado === "canc") return; var p = turPay(x);
-      if (p.n > 0 && p.tot > 0 && p.rest > 0) {
-        var last = DB.ingresos.filter(function (i) { return i.tid === x.id; }).map(function (i) { return i.date; }).sort().pop() || x.date;
-        rows.push({ k: "t", x: x, cid: x.cid, service: x.service, date: last, paid: p.paid, rest: p.rest });
-      } else if (x.estado === "conf" && x.eid && p.n === 0 && needsSena(x.service) && !/^(Del calendario de Google|Cargado a mano)/.test(x.nota || "")) miss.push({ x: x, v: SENA });
-    });
-    // señas sueltas (sin turno) o de turnos sin precio de lista
-    DB.ingresos.forEach(function (i) {
-      if (i.tipo !== "sena" || i.full) return;
-      var t = i.tid ? turOf(i.tid) : null;
-      if (t && turTotal(t) > 0) return; // ese trabajo ya cuenta por su turno
-      var tot = +i.total > 0 ? +i.total : priceOf(i.service, i.veh), paid = ars(i), rest = tot > 0 ? Math.max(0, tot - paid) : null;
-      if (rest === 0) return;
-      rows.push({ k: "s", i: i, cid: i.cid, service: i.service, date: i.date, paid: paid, rest: rest });
-    });
-    if (!rows.length && !miss.length) return "";
-    rows.sort(function (a, b) { return a.date < b.date ? -1 : 1; }); // la más vieja primero
-    miss.sort(function (a, b) { return a.x.date < b.x.date ? -1 : 1; });
-    var q = nrm(UI.pq || ""), shown = q ? rows.filter(function (r) { var c = cl(r.cid); return nrm((c ? c.name : "") + " " + (r.service || "")).indexOf(q) >= 0; }) : rows;
-    var all = UI.pendAll || {}, LIM = 8, more = function (k, arr) { return arr.length > LIM ? '<button class="btn sm" style="margin-top:10px;width:100%" data-act="pend-all" data-id="' + k + '">' + (all[k] ? "Ver menos" : "Ver todos (" + arr.length + ")") + "</button>" : ""; };
-    var rowCob = function (r) {
-      var c = cl(r.cid), d = ago(r.date), age = d <= 0 ? "hoy" : d === 1 ? "ayer" : "hace " + d + " días", name = c ? c.name : "Sin cliente";
-      var wa = c && c.phone ? '<a class="btn wa sm" target="_blank" rel="noopener" href="' + waLink(c.phone, "Hola " + name.split(" ")[0] + "! Te escribimos de RDETAIL. Te recordamos que el saldo de tu " + (r.service || "servicio") + (r.rest != null ? " es de " + money(r.rest) : " está pendiente") + ". ¿Cuándo pasás a abonarlo?") + '">WhatsApp</a>' : "";
-      var id = r.k === "t" ? r.x.id : r.i.id, a1 = r.k === "t" ? "t-saldo" : "sena-saldo", a2 = r.k === "t" ? "t-cobrado" : "sena-full";
-      return '<div class="it" style="grid-template-columns:1fr auto"><div class="nm"><b>' + esc(name) + "</b><span>" + esc(r.service || "Seña") + " · pagó " + money(r.paid) + " · " + dShort(r.date) + " · " + (d > 15 ? '<b style="color:#f0343b">' + age + "</b>" : age) + '</span></div><div class="am">' + (r.rest == null ? "A convenir" : money(r.rest)) + '</div>' +
-        '<div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;align-items:center">' + wa + '<button class="btn p sm" data-act="' + a1 + '" data-id="' + id + '">Cobrar saldo</button><button class="icon" data-act="' + a2 + '" data-id="' + id + '" title="Ya cobrado, sacar de la lista" aria-label="Ya cobrado">✓</button></div></div>';
-    };
-    var conv = rows.filter(function (r) { return r.rest == null; }).length, tot = sum(rows, function (r) { return r.rest || 0; }), old = rows.filter(function (r) { return ago(r.date) > 15; }).length, cards = [];
-    if (rows.length) cards.push('<div class="card red"><div class="k"><small>Por cobrar</small><div class="v">' + money(tot) + (conv ? ' <span class="muted" style="font-size:1rem;font-weight:400">+ ' + conv + " a convenir</span>" : "") + '</div><div class="d">' + rows.length + (rows.length === 1 ? " trabajo con saldo pendiente" : " trabajos con saldo pendiente") + (old ? ' · <b style="color:#f0343b">' + old + " con más de 15 días</b>" : "") + "</div></div>" +
-      (rows.length > 4 ? '<input class="search" id="pq" type="search" placeholder="Buscar por cliente o servicio" value="' + esc(UI.pq || "") + '" style="margin-top:12px;margin-bottom:0">' : "") +
-      (shown.length ? '<div class="list" style="margin-top:8px">' + shown.slice(0, all.due ? shown.length : LIM).map(rowCob).join("") + "</div>" + more("due", shown) : '<div class="empty" style="margin-top:8px">Nadie coincide con esa búsqueda.</div>') + "</div>");
-    if (miss.length) cards.push('<div class="card"><div class="k"><small>Seña confirmada sin cargar</small><div class="v">' + miss.length + '</div><div class="d">' + (miss.length === 1 ? "reserva de la web ya confirmada, falta registrar el ingreso" : "reservas de la web ya confirmadas, falta registrar el ingreso") + '</div></div><div class="list" style="margin-top:8px">' + miss.slice(0, all.miss ? miss.length : 5).map(function (o) { var c = cl(o.x.cid); return '<div class="it" style="grid-template-columns:1fr auto auto"><div class="nm"><b>' + esc(c ? c.name : "Cliente") + "</b><span>" + esc(o.x.service) + " · " + dShort(o.x.date) + '</span></div><div class="am">' + money(SENA) + '</div><button class="btn p sm" data-act="t-sena" data-id="' + o.x.id + '">Cargar seña</button></div>'; }).join("") + "</div>" + (miss.length > 5 ? '<button class="btn sm" style="margin-top:10px;width:100%" data-act="pend-all" data-id="miss">' + (all.miss ? "Ver menos" : "Ver todos (" + miss.length + ")") + "</button>" : "") + "</div>");
-    return '<div class="sec"><h2>Señas y saldos</h2><div class="grid' + (cards.length > 1 ? " two" : "") + '">' + cards.join("") + "</div></div>";
+  // ---- tablas estilo planilla para Ingresos/Gastos ----
+  function rowBalance(i) {
+    if (i.tid) {
+      var t = turOf(i.tid);
+      if (t) {
+        var p = turPay(t, DB.ingresos);
+        var sena = sum(DB.ingresos.filter(function (x) { return x.tid === t.id && x.tipo === "sena"; }), ars);
+        return { sena: sena, rest: p.rest, trackable: true, act: "t-cobrado", id: t.id };
+      }
+    }
+    if (i.tipo === "sena" && !i.tid) {
+      var tot = (+i.total > 0) ? Math.round(+i.total) : priceOf(i.service, i.veh);
+      var paid = ars(i), rest = i.full ? 0 : (tot > 0 ? Math.max(0, tot - paid) : null);
+      return { sena: paid, rest: rest, trackable: tot > 0 || i.full, act: "sena-full", id: i.id };
+    }
+    return { sena: 0, rest: 0, trackable: false, act: "", id: "" };
   }
-  function rowIng(i) {
-    var c = DB.clients.filter(function (x) { return x.id === i.cid; })[0];
-    return '<div class="it"><div class="dt">' + dShort(i.date) + '</div><div class="nm"><b>' + esc(i.service) + "</b><span>" + esc(c ? c.name : "Sin cliente") + " · " + esc(i.veh === "camioneta" ? "Camioneta" : "Auto") + " · " + esc(i.pago) + tagIng(i) + (i.cur === "USD" ? ' · <b class="usd">' + esc(amtNote(i)) + "</b>" : "") + '</span></div><div class="am">' + money(ars(i)) + '</div><div class="ac"><button class="icon" data-act="edit-ing" data-id="' + i.id + '" aria-label="Editar">✎</button><button class="icon" data-act="del-ing" data-id="' + i.id + '" aria-label="Borrar">✕</button></div></div>';
+  function tablaIng(list) {
+    var head = '<div class="xlswrap"><table class="xls"><thead><tr><th class="w-dt">Fecha</th><th>Cliente</th><th>Servicio</th><th class="w-sm">Vehículo</th><th class="w-sm">Medio</th><th class="w-sm">Tipo</th><th class="w-num">Monto</th><th class="w-num">Seña</th><th class="w-num">Restante</th><th class="w-chk">✓</th><th class="w-act"></th></tr></thead><tbody>';
+    var rows = list.map(function (i) {
+      var c = DB.clients.filter(function (x) { return x.id === i.cid; })[0];
+      var usd = i.cur === "USD";
+      var montoCell = usd
+        ? '<td class="ro" title="Tiene USD, se edita con el lápiz">' + money(ars(i)) + '</td>'
+        : '<td class="num"><input type="text" inputmode="numeric" value="' + money(ars(i)) + '" data-edit="ing-monto" data-id="' + i.id + '"></td>';
+      var b = rowBalance(i);
+      var rowCls = b.trackable && b.rest === 0 ? " ok" : b.trackable && b.rest > 0 ? " due" : "";
+      var senaCell = '<td class="ro" style="text-align:right">' + (b.sena ? money(b.sena) : "—") + '</td>';
+      var restCell = '<td class="ro" style="text-align:right">' + (!b.trackable ? "—" : b.rest == null ? "A convenir" : money(b.rest)) + '</td>';
+      var chkCell = '<td class="xchk"><button class="chk-btn ' + (!b.trackable ? "na" : b.rest === 0 ? "on" : "off") + '"' + (b.trackable ? ' data-act="' + b.act + '" data-id="' + b.id + '"' : " disabled") + ' title="' + (!b.trackable ? "No aplica" : b.rest === 0 ? "Ya está todo cobrado" : "Marcar como cobrado del todo") + '">✓</button></td>';
+      return '<tr class="' + rowCls.trim() + '">' +
+        '<td><input type="date" value="' + i.date + '" data-edit="ing-date" data-id="' + i.id + '"></td>' +
+        '<td class="xcli"><input type="text" value="' + esc(c ? c.name : "") + '" placeholder="Sin especificar" data-edit="ing-cliente" data-id="' + i.id + '">' + (c && c.phone ? '<div class="xsub">' + esc(c.phone) + '</div>' : "") + '</td>' +
+        '<td><select data-edit="ing-service" data-id="' + i.id + '">' + (function () { var opts = svcOpts(); if (i.service && opts.indexOf(i.service) < 0) opts = [i.service].concat(opts); return opts.map(function (s) { return '<option value="' + esc(s) + '"' + (s === i.service ? " selected" : "") + '>' + esc(s) + '</option>'; }).join(""); })() + '</select></td>' +
+        '<td><select data-edit="ing-veh" data-id="' + i.id + '"><option value="auto"' + (i.veh !== "camioneta" ? " selected" : "") + '>Auto</option><option value="camioneta"' + (i.veh === "camioneta" ? " selected" : "") + '>Camioneta</option></select></td>' +
+        '<td><select data-edit="ing-pago" data-id="' + i.id + '">' + (i.pago ? "" : '<option value="" selected>Sin especificar</option>') + PAGOS.map(function (p) { return '<option value="' + esc(p) + '"' + (p === i.pago ? " selected" : "") + '>' + esc(p) + '</option>'; }).join("") + '</select></td>' +
+        '<td><select data-edit="ing-tipo" data-id="' + i.id + '"><option value="total"' + (!i.tipo || i.tipo === "total" ? " selected" : "") + '>Pago completo</option><option value="sena"' + (i.tipo === "sena" ? " selected" : "") + '>Seña</option><option value="saldo"' + (i.tipo === "saldo" ? " selected" : "") + '>Saldo</option></select></td>' +
+        montoCell + senaCell + restCell + chkCell +
+        '<td class="xact"><button class="icon" data-act="edit-ing" data-id="' + i.id + '" aria-label="Editar">✎</button><button class="icon" data-act="del-ing" data-id="' + i.id + '" aria-label="Borrar">✕</button></td>' +
+        '</tr>';
+    }).join("");
+    return head + rows + "</tbody></table></div>";
   }
-  function rowGas(e) {
-    var g = e.g, f = gFreq(g), dow = new Date(g.date + "T12:00:00").getDay();
-    var sub = f === "once" ? "Una vez" : f === "month" ? "Se repite todos los meses" : f === "week" ? "Todos los " + DOWL[dow] + " · " + e.n + (e.n === 1 ? " vez" : " veces") + " × " + money(e.unit) : "Todos los días" + (g.sun ? "" : " (lun a sáb)") + " · " + e.n + " días × " + money(e.unit);
-    return '<div class="it"><div class="dt">' + (f === "once" ? dShort(g.date) : f === "month" ? "Mes" : f === "week" ? "Sem" : "Día") + '</div><div class="nm"><b>' + esc(g.concept) + "</b><span>" + sub + (g.cur === "USD" ? ' · <b class="usd">' + esc(amtNote(g)) + "</b>" : "") + '</span></div><div class="am">' + money(e.amount) + '</div><div class="ac"><button class="icon" data-act="edit-gas" data-id="' + g.id + '" aria-label="Editar">✎</button><button class="icon" data-act="del-gas" data-id="' + g.id + '" aria-label="Borrar">✕</button></div></div>';
+  function tablaGas(list) {
+    var head = '<div class="xlswrap"><table class="xls"><thead><tr><th class="w-dt">Fecha</th><th>Concepto</th><th class="w-num">Monto</th><th class="w-act"></th></tr></thead><tbody>';
+    var rows = list.map(function (e) {
+      var g = e.g, f = gFreq(g), usd = g.cur === "USD";
+      var dt = f === "once" ? '<input type="date" value="' + g.date + '" data-edit="gas-date" data-id="' + g.id + '">' : '<span class="ro">' + (f === "month" ? "Mensual" : f === "week" ? "Semanal" : "Diario") + '</span>';
+      var montoCell = usd
+        ? '<td class="ro" title="Tiene USD, se edita con el lápiz">' + money(e.amount) + '</td>'
+        : '<td class="num"><input type="text" inputmode="numeric" value="' + money(ars(g)) + '" data-edit="gas-monto" data-id="' + g.id + '"></td>';
+      return '<tr>' +
+        '<td>' + dt + '</td>' +
+        '<td><input type="text" value="' + esc(g.concept) + '" data-edit="gas-concept" data-id="' + g.id + '"></td>' +
+        montoCell +
+        '<td class="xact"><button class="icon" data-act="edit-gas" data-id="' + g.id + '" aria-label="Editar">✎</button><button class="icon" data-act="del-gas" data-id="' + g.id + '" aria-label="Borrar">✕</button></td>' +
+        '</tr>';
+    }).join("");
+    return head + rows + "</tbody></table></div>";
   }
   function hbars(items, fmt, empty) {
     if (!items.length) return '<div class="empty">' + (empty || "Sin datos todavía") + "</div>";
@@ -1107,6 +1176,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   // ---------- eventos ----------
   var A = {
     close: closeM,
+    "toggle-ing": function () { UI.openIng = !UI.openIng; render(); },
+    "toggle-gas": function () { UI.openGas = !UI.openGas; render(); },
     "add-ing": function () { formIng(null, { date: UI.month === curM() ? today() : UI.month + "-01", veh: "auto", service: "", pago: "Efectivo", amount: "" }); },
     "edit-ing": function (id) { formIng(DB.ingresos.filter(function (x) { return x.id === id; })[0]); },
     "del-ing": function (id) { if (confirm("¿Borrar este cobro?")) { DB.ingresos = DB.ingresos.filter(function (x) { return x.id !== id; }); DB.follow = DB.follow.filter(function (f) { return f.iid !== id; }); save(); render(); } },
@@ -1149,7 +1220,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     "t-cobrado": function (id) { var x = turOf(id); if (!x) return; x.cobrado = true; x.nota = (x.nota ? x.nota + " · " : "") + "Marcado como cobrado"; save(); render(); toast("Sacado de la lista"); },
     "t-confirm-precio": function (id) { var x = turOf(id); if (!x) return; delete x.sinConfirmar; save(); render(); toast("Precio confirmado"); },
     "t-confirm-cliente": function (id) { var x = turOf(id); if (!x) return; delete x.clienteSinConfirmar; save(); render(); toast("Cliente confirmado"); },
-    "pend-all": function (k) { UI.pendAll = UI.pendAll || {}; UI.pendAll[k] = !UI.pendAll[k]; render(); },
     calsync: function () { syncCal(true); },
     "crm-view": function (v) { UI.crmView = v; render(); },
     "crm-reply": function (id) {
@@ -1205,6 +1275,30 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     if (e.target.id === "q") { UI.q = e.target.value; var pos = e.target.selectionStart; render(); var q = $("q"); if (q) { q.focus(); q.setSelectionRange(pos, pos); } }
   });
   document.addEventListener("change", function (e) {
+    if (e.target.hasAttribute("data-edit")) {
+      var ed = e.target.getAttribute("data-edit"), rid = e.target.getAttribute("data-id"), val = e.target.value;
+      var ir = function () { return DB.ingresos.filter(function (x) { return x.id === rid; })[0]; };
+      var gr = function () { return DB.gastos.filter(function (x) { return x.id === rid; })[0]; };
+      if (ed === "ing-date") { var r1 = ir(); if (r1 && val) r1.date = val; }
+      else if (ed === "ing-service") { var r2 = ir(); if (r2) r2.service = val; }
+      else if (ed === "ing-veh") { var r3 = ir(); if (r3) r3.veh = val; }
+      else if (ed === "ing-pago") { var r4 = ir(); if (r4) r4.pago = val; }
+      else if (ed === "ing-tipo") { var r5 = ir(); if (r5) { if (val === "total") delete r5.tipo; else r5.tipo = val; } }
+      else if (ed === "ing-monto") { var r6 = ir(); if (r6) r6.amount = Math.round(+val.replace(/[^\d]/g, "") || 0); }
+      else if (ed === "ing-cliente") {
+        var r7 = ir(), nm = val.trim();
+        if (r7 && nm) {
+          var cx = DB.clients.filter(function (x) { return x.id === r7.cid; })[0];
+          if (cx) cx.name = nm;
+          else { var ex = findClient(nm); if (ex) r7.cid = ex.id; else { var nc = { id: uid(), name: nm, phone: "", vehicle: "", plate: "", notes: "" }; DB.clients.push(nc); r7.cid = nc.id; } }
+        }
+      }
+      else if (ed === "gas-date") { var g1 = gr(); if (g1 && val) g1.date = val; }
+      else if (ed === "gas-concept") { var g2 = gr(); if (g2 && val.trim()) g2.concept = val.trim(); }
+      else if (ed === "gas-monto") { var g3 = gr(); if (g3) g3.amount = Math.round(+val.replace(/[^\d]/g, "") || 0); }
+      save(); render();
+      return;
+    }
     if (e.target.id === "f-svc" || e.target.id === "f-veh") autoAmt(true);
     if (e.target.id === "f-tid") pickTurno();
     if (e.target.id === "f-tipo") { var tw = $("f-totw"); if (tw) tw.hidden = e.target.value !== "sena"; autoAmt(true); }
