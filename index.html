@@ -118,6 +118,17 @@ main{padding-block:22px}
 .cli h4{font-size:1.02rem;font-weight:800}
 .cli .tot{font-family:var(--display);font-size:1.6rem;letter-spacing:.03em;text-align:right}
 .cli p{font-size:.82rem;color:var(--g3)}
+.preclist{display:flex;flex-direction:column}
+.precrow{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;padding:16px 18px;border-bottom:1px solid var(--g1);text-align:left;width:100%;color:var(--off);background:none}
+.precrow:last-child{border-bottom:none}
+.precrow:hover{background:var(--asphalt)}
+.precrow .pn{font-weight:800}
+.precrow .pn .tag{margin-left:8px;font-size:.6rem;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--red);color:#fff;letter-spacing:.04em}
+.precrow .pv{text-align:right;font-size:.88rem;white-space:nowrap}
+.precrow .pv small{display:block;font-size:.6rem;color:var(--g3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.precrow .pv s{color:var(--g3);margin-right:4px}
+.precrow .pv em{font-style:normal;color:var(--ok);font-size:.72rem;margin-left:4px}
+@media(max-width:620px){.precrow{grid-template-columns:1fr;row-gap:6px}.precrow .pv{text-align:left}}
 .crmlist{display:flex;flex-direction:column;gap:8px}
 .crmrow{display:flex;align-items:center;gap:10px;text-align:left;padding:12px 14px;border:1px solid var(--g1);border-radius:12px;background:var(--ink);cursor:pointer;width:100%;color:var(--off)}
 .crmrow:hover{border-color:var(--g2)}
@@ -224,6 +235,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
       <button role="tab" data-tab="crm" aria-selected="false">CRM</button>
       <button role="tab" data-tab="cli" aria-selected="false">Clientes</button>
       <button role="tab" data-tab="met" aria-selected="false">Métricas</button>
+      <button role="tab" data-tab="precios" aria-selected="false">Precios</button>
     </div>
   </div>
   <div class="demo" id="demo" hidden>Estás viendo <b>datos de ejemplo</b>, nada de esto se guarda. <button type="button" data-act="exit-demo">Salir</button></div>
@@ -251,11 +263,18 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   var DOW = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
   var WA_NUM = "5491135879376";
   var PAGOS = ["Efectivo","Transferencia","Mercado Pago","Tarjeta"];
-  var SERV = [
-    ["Preventa",249999,289999],["Promo interior y lavado",169999,199999],["Promo interior, motor y lavado",225000,269999],
-    ["Limpieza de interior y lavado",199999,230000],["Lavado premium",60000,65000],["Abrillantado",180000,220000],["Lavado de motor",70000,70000],
-    ["Tratamiento acrílico",380000,460000],["Tratamiento cerámico",460000,550000],["Polarizado",150000,150000],["Sacabollos",0,0],
-    ["Plan mensual",0,0],["Otro",0,0]
+  var PRECIOS_SEED = [
+    { name: "Preventa", tag: "", auto: { price: 312499, disc: 20 }, camioneta: { price: 362499, disc: 20 } },
+    { name: "Promo interior y lavado", tag: "", auto: { price: 212499, disc: 20 }, camioneta: { price: 249999, disc: 20 } },
+    { name: "Promo interior, motor y lavado", tag: "", auto: { price: 281250, disc: 20 }, camioneta: { price: 337499, disc: 20 } },
+    { name: "Limpieza de interior y lavado", tag: "PRINCIPAL", auto: { price: 199999, disc: 0 }, camioneta: { price: 230000, disc: 0 } },
+    { name: "Lavado premium", tag: "", auto: { price: 60000, disc: 0 }, camioneta: { price: 65000, disc: 0 } },
+    { name: "Abrillantado", tag: "", auto: { price: 180000, disc: 0 }, camioneta: { price: 220000, disc: 0 } },
+    { name: "Lavado de motor", tag: "", auto: { price: 70000, disc: 0 }, camioneta: { price: 70000, disc: 0 } },
+    { name: "Tratamiento acrílico", tag: "", auto: { price: 380000, disc: 0 }, camioneta: { price: 460000, disc: 0 } },
+    { name: "Tratamiento cerámico", tag: "", auto: { price: 460000, disc: 0 }, camioneta: { price: 550000, disc: 0 } },
+    { name: "Polarizado", tag: "", auto: { price: 150000, disc: 0 }, camioneta: { price: 150000, disc: 0 } },
+    { name: "Sacabollos", tag: "", consultar: true, auto: { price: 0, disc: 0 }, camioneta: { price: 0, disc: 0 } }
   ];
   var SUG = { fijo: ["Alquiler","Luz","Gas","Agua","Internet","Seguro","Contador","Monotributo / impuestos","Sistema y herramientas"], sueldo: ["Sueldo","Cargas sociales"], variable: ["Productos de limpieza","Insumos","Cerámico y acrílicos","Mantenimiento de equipos","Publicidad","Combustible","Reparaciones","Otros"] };
   var TNAME = { fijo: "Gastos fijos", sueldo: "Sueldos", variable: "Gastos variables" };
@@ -288,12 +307,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
 
   // ---------- datos y sincronización ----------
   var API = "/.netlify/functions/";
-  var COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages", "ig_comments"];
+  var COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages", "ig_comments", "precios"];
   var mem = {};
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
   function lsSet(k, v) { mem[k] = v; try { localStorage.setItem(k, v); } catch (e) {} }
   function lsDel(k) { delete mem[k]; try { localStorage.removeItem(k); } catch (e) {} }
-  function blank() { return { v: 1, demo: false, clients: [], turnos: [], ingresos: [], gastos: [], follow: [], ig_conversations: [], ig_messages: [], ig_comments: [] }; }
+  function blank() { return { v: 1, demo: false, clients: [], turnos: [], ingresos: [], gastos: [], follow: [], ig_conversations: [], ig_messages: [], ig_comments: [], precios: [] }; }
   var DEMO = /demo/.test(location.hash);
   var DB = blank(), SNAP = {}, QUEUE = [], TOKEN = lsGet("rdp_token") || "", STATUS = "ok", flushing = false, retry = null;
   try { var c0 = JSON.parse(lsGet("rdp_cache") || "null"); if (c0 && c0.ingresos) { DB = c0; DB.demo = false; } } catch (e) {}
@@ -327,6 +346,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   function applyServer(data) {
     var n = blank(); COLS.forEach(function (c) { n[c] = data[c] || []; });
     DB = n; SNAP = snapOf(DB); persist();
+    if (!DEMO && !DB.precios.length) { DB.precios = PRECIOS_SEED.map(function (p, i) { return Object.assign({ id: uid(), order: i }, p); }); save(); }
     if (!modalOpen() && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) render();
   }
   function flush() {
@@ -466,7 +486,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var ing = DB.ingresos.filter(function (i) { return i.cid === c.id; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     return { ing: ing, n: ing.filter(function (i) { return i.tipo !== "sena"; }).length, tot: sum(ing, ars), last: ing.length ? ing[0].date : null };
   }
-  function priceOf(svc, veh) { for (var i = 0; i < SERV.length; i++) if (SERV[i][0] === svc) return veh === "camioneta" ? SERV[i][2] : SERV[i][1]; return 0; }
+  function precioFinal(p, veh) { var v = (veh === "camioneta" ? p.camioneta : p.auto) || { price: 0, disc: 0 }; return Math.round((v.price || 0) * (1 - (v.disc || 0) / 100)); }
+  function priceOf(svc, veh) { var p = DB.precios.filter(function (x) { return x.name === svc; })[0]; return (!p || p.consultar) ? 0 : precioFinal(p, veh); }
   // señas y saldos: cada cobro puede vincularse a un turno
   var SENA = 30000, NOSENA = ["Lavado premium"];
   var TIPOS = { total: "Pago total", sena: "Seña", saldo: "Saldo" };
@@ -516,10 +537,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   // ---------- render ----------
   function render() {
     $("mlab").textContent = mLabel(UI.month);
-    $("msel").hidden = (UI.tab === "cli" || UI.tab === "crm");
+    $("msel").hidden = (UI.tab === "cli" || UI.tab === "crm" || UI.tab === "precios");
     $("demo").hidden = !DEMO; setStatus(STATUS);
     [].forEach.call($("tabs").children, function (b) { b.setAttribute("aria-selected", b.getAttribute("data-tab") === UI.tab); });
-    $("app").innerHTML = (UI.tab === "num" ? vNum() : UI.tab === "met" ? vMet() : UI.tab === "cal" ? vCal() : UI.tab === "crm" ? vCrm() : vCli()) + vFoot();
+    $("app").innerHTML = (UI.tab === "num" ? vNum() : UI.tab === "met" ? vMet() : UI.tab === "cal" ? vCal() : UI.tab === "crm" ? vCrm() : UI.tab === "precios" ? vPrecios() : vCli()) + vFoot();
   }
 
   function kpi(label, val, sub, cls) { return '<div class="card k ' + (cls || "") + '"><small>' + label + '</small><div class="v">' + val + '</div><div class="d">' + sub + "</div></div>"; }
@@ -641,6 +662,25 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     h += '<div class="grid two"><div class="sec"><h2>Turnos por día</h2><div class="card"><div class="cols">' + dow.map(function (x) { return "<div><em>" + x.v + '</em><i style="height:' + Math.max(2, x.v / dmax * 100) + '%"></i><span>' + x.l + "</span></div>"; }).join("") + '</div></div></div><div class="sec"><h2>Medios de pago</h2><div class="card">' + hbars(byP, "money") + "</div></div></div>";
     h += '<div class="grid two"><div class="sec"><h2>Auto vs camioneta</h2><div class="card">' + hbars(byV, "money") + '</div></div><div class="sec"><h2>Clientes del mes</h2><div class="card"><div class="grid" style="grid-template-columns:1fr 1fr"><div class="k"><small>Atendidos</small><div class="v">' + ids.length + '</div></div><div class="k"><small>Ya habían venido</small><div class="v">' + rec + "</div></div></div><p class=\"muted\" style=\"margin-top:10px\">" + (ids.length ? Math.round(rec / ids.length * 100) + "% de los clientes del mes ya habían venido antes." : "Cargá cobros con cliente para ver cuántos vuelven.") + "</p></div></div></div>";
     return h;
+  }
+
+  // ---- precios: fuente única para turnos, la web pública y el futuro bot
+  function vPrecios() {
+    var l = DB.precios.slice().sort(function (a, b) { return a.order - b.order; });
+    var h = '<div class="sec"><h2>Precios <span class="sp"><button class="btn p sm" data-act="add-precio">+ Servicio</button></span></h2>';
+    h += '<p class="muted" style="margin-bottom:14px">Esta lista es la que usa el panel para sugerir precios en los turnos, y la que van a leer la web pública y el futuro bot. Tocá un servicio para editarlo.</p>';
+    if (!l.length) return h + '<div class="card empty">Sin servicios cargados todavía.</div></div>';
+    h += '<div class="card" style="padding:0"><div class="preclist">' + l.map(function (p) {
+      return '<button type="button" class="precrow" data-act="edit-precio" data-id="' + p.id + '">' +
+        '<span class="pn">' + esc(p.name) + (p.tag ? ' <b class="tag">' + esc(p.tag) + "</b>" : "") + "</span>" +
+        precioCell("Auto", p, "auto") + precioCell("Camioneta", p, "camioneta") + "</button>";
+    }).join("") + "</div></div></div>";
+    return h;
+  }
+  function precioCell(label, p, veh) {
+    if (p.consultar) return '<span class="pv"><small>' + label + "</small>Consultar</span>";
+    var v = p[veh] || { price: 0, disc: 0 };
+    return '<span class="pv"><small>' + label + "</small>" + (v.disc ? "<s>" + money(v.price) + "</s> " : "") + money(precioFinal(p, veh)) + (v.disc ? " <em>-" + v.disc + "%</em>" : "") + "</span>";
   }
 
   // ---- clientes
@@ -794,7 +834,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     else if (phone && !c.phone) c.phone = phone;
     return c;
   }
-  function svcOpts() { return SERV.map(function (s) { return s[0]; }); }
+  function svcOpts() { return DB.precios.slice().sort(function (a, b) { return a.order - b.order; }).map(function (p) { return p.name; }).concat(["Plan mensual", "Otro"]); }
 
   var editIng = "";
   function formIng(i, pre) {
@@ -902,6 +942,25 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   function formFu() {
     openM('<h3>Nuevo seguimiento<button class="icon" data-act="close">✕</button></h3>' + cliList() + fld("Cliente", '<input type="text" id="u-name" list="cl" autocomplete="off" placeholder="Elegí un cliente">') + fld("Tipo", sel("u-type", [["post", FTXT.post], ["recordatorio", FTXT.recordatorio], ["mantenimiento", FTXT.mantenimiento], ["reactivar", FTXT.reactivar], ["otro", FTXT.otro]], "post")) + fld("Cuándo", '<input type="date" id="u-due" value="' + addDays(today(), 3) + '">') +
       '<div class="mfoot"><button class="btn" data-act="close">Cancelar</button><button class="btn p" data-act="save-fu">Guardar</button></div>');
+  }
+  function formPrecio(p) {
+    p = p || { name: "", tag: "", consultar: false, auto: { price: "", disc: "" }, camioneta: { price: "", disc: "" } };
+    openM('<h3>' + (p.id ? "Editar servicio" : "Nuevo servicio") + '<button class="icon" data-act="close">✕</button></h3>' +
+      fld("Nombre del servicio", '<input type="text" id="p-name" value="' + esc(p.name) + '">') +
+      fld("Etiqueta (opcional, ej: PRINCIPAL)", '<input type="text" id="p-tag" value="' + esc(p.tag || "") + '">') +
+      '<label class="chk"><input type="checkbox" id="p-consultar"' + (p.consultar ? " checked" : "") + '> Sin precio fijo (mostrar "Consultar")</label>' +
+      '<div id="p-prices"' + (p.consultar ? " hidden" : "") + '><div class="f2">' + fld("Precio Auto", '<input type="number" id="p-auto-price" inputmode="numeric" min="0" step="1000" value="' + (p.auto.price || "") + '">') + fld("Descuento Auto (%)", '<input type="number" id="p-auto-disc" inputmode="numeric" min="0" max="100" value="' + (p.auto.disc || "") + '">') + "</div>" +
+      '<div class="f2">' + fld("Precio Camioneta", '<input type="number" id="p-cam-price" inputmode="numeric" min="0" step="1000" value="' + (p.camioneta.price || "") + '">') + fld("Descuento Camioneta (%)", '<input type="number" id="p-cam-disc" inputmode="numeric" min="0" max="100" value="' + (p.camioneta.disc || "") + '">') + "</div></div>" +
+      '<div class="mfoot">' + (p.id ? '<button class="btn g" data-act="del-precio" data-id="' + p.id + '">Borrar</button>' : "") + '<button class="btn" data-act="close">Cancelar</button><button class="btn p" data-act="save-precio" data-id="' + (p.id || "") + '">Guardar</button></div>');
+  }
+  function savePrecio(id) {
+    var name = gv("p-name").trim(); if (!name) return toast("Falta el nombre del servicio");
+    var rec = id ? DB.precios.filter(function (x) { return x.id === id; })[0] : null;
+    if (!rec) { rec = { id: uid(), order: DB.precios.length }; DB.precios.push(rec); }
+    rec.name = name; rec.tag = gv("p-tag").trim(); rec.consultar = $("p-consultar").checked;
+    rec.auto = { price: Math.round(+gv("p-auto-price") || 0), disc: Math.min(100, Math.max(0, Math.round(+gv("p-auto-disc") || 0))) };
+    rec.camioneta = { price: Math.round(+gv("p-cam-price") || 0), disc: Math.min(100, Math.max(0, Math.round(+gv("p-cam-disc") || 0))) };
+    save(); closeM(); render(); toast("Servicio guardado");
   }
   function openCli(id) {
     var c = DB.clients.filter(function (x) { return x.id === id; })[0]; if (!c) return;
@@ -1035,6 +1094,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     "t-canc": function (id) { if (confirm("¿Cancelar este turno?")) { DB.turnos.forEach(function (x) { if (x.id === id) x.estado = "canc"; }); save(); render(); } },
     "t-hecho": function (id) { var x = turOf(id); if (!x) return; var p = turPay(x); formIng(null, { date: x.date <= today() ? x.date : today(), veh: x.veh, service: x.service, pago: "Transferencia", amount: p.rest || "", cid: x.cid, tid: x.id, tipo: p.n ? "saldo" : "total", done: true }); },
     "save-t": saveTur,
+    "add-precio": function () { formPrecio(); }, "edit-precio": function (id) { formPrecio(DB.precios.filter(function (x) { return x.id === id; })[0]); },
+    "del-precio": function (id) { if (confirm("¿Borrar este servicio de la lista de precios?")) { DB.precios = DB.precios.filter(function (x) { return x.id !== id; }); save(); closeM(); render(); } },
+    "save-precio": function (id) { savePrecio(id); },
     "add-cli": function () { formCli(); }, "open-cli": openCli, "edit-cli": function (id) { formCli(DB.clients.filter(function (x) { return x.id === id; })[0]); },
     "del-cli": function (id) { if (confirm("¿Borrar este cliente? Sus cobros quedan registrados sin nombre.")) { DB.clients = DB.clients.filter(function (x) { return x.id !== id; }); DB.follow = DB.follow.filter(function (f) { return f.cid !== id; }); save(); closeM(); render(); } },
     "save-cli": saveCli,
@@ -1112,7 +1174,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     if (e.target.id === "f-svc" || e.target.id === "f-veh") autoAmt(true);
     if (e.target.id === "f-tipo") { var tw = $("f-totw"); if (tw) tw.hidden = e.target.value !== "sena"; autoAmt(true); }
     if (e.target.id === "t-svc" || e.target.id === "t-veh") tpl();
-    
+    if (e.target.id === "p-consultar") { var pp2 = $("p-prices"); if (pp2) pp2.hidden = e.target.checked; }
+
     if (e.target.id === "f-cur") { var u = e.target.value === "USD", lp = priceOf(gv("f-svc"), gv("f-veh")); if (u) { if (+$("f-amt").value === lp) $("f-amt").value = ""; if (!$("f-fx").value) $("f-fx").value = lastFx() || ""; } autoAmt(!u); conv("f"); }
     if (e.target.id === "g-cur") { setTimeout(gfreqUI, 0); if (e.target.value === "USD" && !$("g-fx").value) $("g-fx").value = lastFx() || ""; conv("g"); }
     if (e.target.id === "g-type") { sugg(); var fr = $("g-freq"); if (fr) { fr.value = e.target.value === "variable" ? "once" : "month"; gfreqUI(); } }
@@ -1126,7 +1189,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   $("mnext").addEventListener("click", function () { UI.month = addM(UI.month, 1); render(); });
 
   var h = location.hash.replace("#", "");
-  var tm = h.match(/(num|cal|crm|met|cli)/); if (tm) UI.tab = tm[1];
+  var tm = h.match(/(num|cal|crm|met|precios|cli)/); if (tm) UI.tab = tm[1];
   var sm = h.match(/-(seg|cal|tur|cli|rea)$/); if (sm) UI.sub = sm[1];
   $("lg-form").addEventListener("submit", doLogin);
   document.addEventListener("visibilitychange", function () { if (!document.hidden && TOKEN && !DEMO) { flush().then(pull).then(function () { return syncCal(false); }); } });

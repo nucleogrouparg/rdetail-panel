@@ -2,7 +2,7 @@
 // Cada fila: colección | id | JSON del registro | última modificación
 const { settings, verify, json, sheetApply } = require("./_lib");
 
-const COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages", "ig_comments"];
+const COLS = ["clients", "turnos", "ingresos", "gastos", "follow", "ig_conversations", "ig_messages", "ig_comments", "precios"];
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "method" });
