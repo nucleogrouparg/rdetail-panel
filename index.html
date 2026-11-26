@@ -498,9 +498,18 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   var TIPOS = { total: "Pago total", sena: "Seña", saldo: "Saldo" };
   var needsSena = function (svc) { return NOSENA.indexOf(svc) < 0; };
   var turOf = function (id) { return id ? DB.turnos.filter(function (x) { return x.id === id; })[0] : null; };
-  function turTotal(t) { var v = t.total; return v !== undefined && v !== null && v !== "" ? Math.round(+v) : priceOf(t.service, t.veh); }
+  function turTotalIng(t, ex) {
+    var withTot = DB.ingresos.filter(function (i) { return i.tid === t.id && i.id !== ex && +i.total > 0; });
+    if (!withTot.length) return null;
+    withTot.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    return Math.round(+withTot[withTot.length - 1].total);
+  }
+  function turTotal(t, ex) {
+    var over = turTotalIng(t, ex); if (over != null) return over;
+    var v = t.total; return v !== undefined && v !== null && v !== "" ? Math.round(+v) : priceOf(t.service, t.veh);
+  }
   function turPay(t, ex) {
-    var p = DB.ingresos.filter(function (i) { return i.tid === t.id && i.id !== ex; }), tot = turTotal(t), paid = sum(p, ars);
+    var p = DB.ingresos.filter(function (i) { return i.tid === t.id && i.id !== ex; }), tot = turTotal(t, ex), paid = sum(p, ars);
     return { tot: tot, paid: paid, sena: sum(p.filter(function (i) { return i.tipo === "sena"; }), ars), n: p.length, rest: t.cobrado ? 0 : (tot > 0 ? Math.max(0, tot - paid) : null) };
   }
   function tagIng(i) {
@@ -876,6 +885,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     var t = turOf(gv("f-tid")), info = $("f-link"), a = $("f-amt"), tipo = gv("f-tipo");
     if (!t) { if (info) info.innerHTML = ""; return false; }
     var p = turPay(t, editIng);
+    var ownTot = tipo === "sena" ? +gv("f-tot") : 0;
+    if (ownTot > 0) p = { tot: ownTot, paid: p.paid, sena: p.sena, n: p.n, rest: t.cobrado ? 0 : Math.max(0, ownTot - p.paid) };
     if (info) info.innerHTML = (p.tot > 0 ? "Precio del servicio <b>" + money(p.tot) + "</b> · ya pagado <b>" + money(p.paid) + "</b> · resta <b>" + money(p.rest) + "</b>" : "Este servicio no tiene precio fijo: cargá el monto a mano.") + (tipo === "sena" && !needsSena(t.service) ? " · Este servicio no lleva seña." : "");
     if (force && a && gv("f-cur") !== "USD") { if (tipo === "sena") a.value = SENA; else if (p.rest) a.value = p.rest; else if (p.tot > 0 && !p.rest) a.value = ""; }
     return true;
@@ -1187,6 +1198,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   });
   document.addEventListener("input", function (e) {
     if (e.target.id === "f-amt" || e.target.id === "f-fx") conv("f");
+    if (e.target.id === "f-tot") linkAmt();
     if (e.target.id === "g-amt" || e.target.id === "g-fx") conv("g");
     if (["p-auto-price", "p-auto-disc", "p-cam-price", "p-cam-disc"].indexOf(e.target.id) >= 0) precioFormUI();
     if (e.target.id === "pq") { UI.pq = e.target.value; var pp = e.target.selectionStart; render(); var pe = $("pq"); if (pe) { pe.focus(); pe.setSelectionRange(pp, pp); } }
