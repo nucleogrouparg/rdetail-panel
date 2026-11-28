@@ -24,7 +24,9 @@ async function accessToken(sa) {
   const now = Math.floor(Date.now() / 1000);
   if (cached.token && cached.exp - 60 > now) return cached.token;
   const head = b64u(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-  const body = b64u(JSON.stringify({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar.readonly", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 }));
+  // "calendar" (lectura/escritura) y no "calendar.readonly": sync.js crea el
+  // evento del turno nuevo en Google Calendar ademas de guardarlo en la hoja.
+  const body = b64u(JSON.stringify({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 }));
   const sig = crypto.createSign("RSA-SHA256").update(head + "." + body).sign(sa.private_key);
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
